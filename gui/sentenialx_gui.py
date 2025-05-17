@@ -373,4 +373,3 @@ class SentenialXGUI:
         return dot(a, b) / (norm(a) * norm(b))
 
 
-
