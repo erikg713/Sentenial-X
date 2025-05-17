@@ -10,6 +10,10 @@ from sklearn.decomposition import PCA
 from core.ingestor.collector import collect_sample
 from core.neural_engine.profiler import get_embedding
 from utils.logger import logger
+from gui.visualizer.Realtimethreats import RealTimeThreatsPanel
+
+self.threat_panel = RealTimeThreatsPanel(self.content_frame)
+self.threat_panel.pack(fill="both", expand=True)
 
 class SentenialXGUI:
     def __init__(self, root):
