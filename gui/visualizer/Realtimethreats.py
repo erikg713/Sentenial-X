@@ -52,3 +52,38 @@ class RealTimeThreatsPanel(ttk.Frame):
 
     def stop(self):
         self.running = False
+# gui/visualizer/Realtimethreats.py
+import tkinter as tk
+from tkinter import ttk
+import threading
+import time
+from core import scanner
+
+class RealTimeThreatsPanel(ttk.Frame):
+    def __init__(self, parent, *args, **kwargs):
+        super().__init__(parent, *args, **kwargs)
+        self.configure(style="Dark.TFrame")
+
+        self.title_label = ttk.Label(self, text="Real-Time Threat Monitor", style="Heading.TLabel")
+        self.title_label.pack(pady=10)
+
+        self.tree = ttk.Treeview(self, columns=("Time", "IP", "Type", "Severity"), show="headings", height=15)
+        for col in ("Time", "IP", "Type", "Severity"):
+            self.tree.heading(col, text=col)
+            self.tree.column(col, width=120)
+        self.tree.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
+
+        style = ttk.Style()
+        style.configure("Treeview", background="#1e1e1e", foreground="white", fieldbackground="#1e1e1e")
+        style.configure("Heading.TLabel", font=("Helvetica", 14, "bold"), foreground="cyan")
+
+        self.after(1000, self.check_queue)
+
+    def add_threat(self, timestamp, ip, threat_type, severity):
+        self.tree.insert("", 0, values=(timestamp, ip, threat_type, severity))
+
+    def check_queue(self):
+        while not scanner.threat_queue.empty():
+            threat = scanner.threat_queue.get()
+            self.add_threat(*threat)
+        self.after(1000, self.check_queue)
