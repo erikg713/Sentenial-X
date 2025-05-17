@@ -261,7 +261,116 @@ class SentenialXGUI:
             self.entry_bg = "#ffffff"
             self.button_bg = "#dddddd"
 
-if __name__ == "__main__":
-    root = tk.Tk()
-    app = SentenialXGUI(root)
-    root.mainloop()
+import tkinter as tk
+from tkinter import filedialog, messagebox
+import json
+from numpy import dot
+from numpy.linalg import norm
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+
+from core.ingestor.collector import collect_sample
+from core.neural_engine.profiler import get_embedding
+
+
+class SentenialXGUI:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("SentenialX A.I. Threat Collector")
+        self.root.geometry("800x600")
+        self.root.configure(bg="#1c1c1c")
+
+        self.last_embedding = None
+
+        self.init_dashboard()
+
+    def init_dashboard(self):
+        # Instruction label
+        self.label = tk.Label(self.root, text="Choose a threat sample to analyze", font=("Helvetica", 14), bg="#1c1c1c", fg="#ffffff")
+        self.label.pack(pady=15)
+
+        # Select file button
+        self.select_button = tk.Button(self.root, text="Select File", command=self.load_sample, bg="#0d6efd", fg="white", font=("Helvetica", 11))
+        self.select_button.pack(pady=10)
+
+        # Result JSON text output
+        self.result_text = tk.Text(self.root, height=12, width=90, bg="#2b2b2b", fg="#00ff00", insertbackground="#00ff00")
+        self.result_text.pack(pady=10)
+
+        # Similarity Label
+        self.similarity_label = tk.Label(self.root, text="", font=("Helvetica", 12), bg="#1c1c1c", fg="cyan")
+        self.similarity_label.pack(pady=5)
+
+        # Embedding chart frame
+        self.chart_frame = tk.Frame(self.root, bg="#1c1c1c")
+        self.chart_frame.pack(pady=10)
+
+    def load_sample(self):
+        file_path = filedialog.askopenfilename()
+        if not file_path:
+            return
+
+        try:
+            # Collect structured sample metadata
+            sample_data = collect_sample(file_path)
+
+            # Extract text from the file
+            with open(file_path, 'r', errors='ignore') as f:
+                text = f.read(1000)
+
+            # Generate embedding
+            embedding = get_embedding(text)
+
+            # Cosine similarity comparison
+            similarity = None
+            if self.last_embedding is not None:
+                try:
+                    similarity = self.cosine_similarity(self.last_embedding, embedding)
+                    self.similarity_label.config(text=f"Similarity with last sample: {similarity:.4f}")
+                except Exception as e:
+                    self.similarity_label.config(text=f"Similarity error: {e}")
+            else:
+                self.similarity_label.config(text="No previous sample to compare.")
+
+            self.last_embedding = embedding  # Save for next sample
+
+            # Prepare result preview
+            result = {
+                "sample_info": sample_data,
+                "embedding_preview": embedding[:10].tolist()  # Truncated preview
+            }
+
+            # Show result JSON
+            self.result_text.delete(1.0, tk.END)
+            self.result_text.insert(tk.END, json.dumps(result, indent=2))
+
+            # Show embedding as chart
+            self.show_embedding_chart(embedding)
+
+        except Exception as e:
+            messagebox.showerror("Error", str(e))
+
+    def show_embedding_chart(self, vector):
+        # Clear previous chart
+        for widget in self.chart_frame.winfo_children():
+            widget.destroy()
+
+        # Display first 32 values
+        vector_slice = vector[:32]
+
+        fig, ax = plt.subplots(figsize=(6.5, 2.8))
+        ax.bar(range(len(vector_slice)), vector_slice, color='skyblue')
+        ax.set_title("Embedding Preview (First 32 Values)")
+        ax.set_xlabel("Index")
+        ax.set_ylabel("Value")
+        fig.tight_layout()
+
+        chart = FigureCanvasTkAgg(fig, master=self.chart_frame)
+        chart.draw()
+        chart.get_tk_widget().pack()
+
+    def cosine_similarity(self, a, b):
+        return dot(a, b) / (norm(a) * norm(b))
+
+
+
