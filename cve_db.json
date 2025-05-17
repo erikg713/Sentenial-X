@@ -12,3 +12,11 @@
   // ... more CVE entries
 }
 
+{
+  "CVE-2023-1234": {
+    "description": "Buffer overflow in ABC...",
+    "severity": "High",
+    "published": "2023-04-01"
+  },
+  ...
+}
