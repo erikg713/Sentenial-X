@@ -45,7 +45,30 @@ Reverse-engineers attacks, generates semantic + behavioral embeddings for patter
 * Builds immunity over time.
 
 
-
+SentenialX_AI/
+├── core/
+│   ├── ai_engine.py         # AI model handlers (ML/NLP/CVE analysis)
+│   ├── analyzer.py          # Threat detection, correlation, signature matching
+│   ├── recon.py             # Smart recon engine
+│   ├── scanner.py           # AI-assisted scanner logic
+│   ├── controller.py        # Central dispatcher & automation logic
+│   └── __init__.py
+├── gui/
+│   ├── dashboard.py         # Main GUI logic, connects to AI output
+│   └── visualizer/
+│       └── Realtimethreats.py # Live AI visualizations
+├── utils/
+│   ├── logger.py            # Encrypted logging and alerts
+│   ├── helpers.py           # Utility functions, AI bridges
+│   └── constants.py
+├── data/
+│   └── samples/
+│       └── Sampledata.json  # Input or dummy test data for AI analysis
+├── config/
+│   └── settings.json        # Configs for model paths, scan depth, modes
+├── main.py                  # Launcher (starts GUI and backend)
+├── README.md
+└── requirements.txt
 
 ---
 
