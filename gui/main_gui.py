@@ -4,17 +4,29 @@ import os
 import json
 import numpy as np
 
+import matplotlib.pyplot as plt
+from sklearn.decomposition import PCA
+
 from core.ingestor.collector import collect_sample
 from core.neural_engine.profiler import get_embedding
-from utils.logger import logger  # Make sure this is set up
+from utils.logger import logger
 
 class SentenialXGUI:
     def __init__(self, root):
         self.root = root
         self.root.title("SentenialX A.I. Threat Collector")
-        self.root.geometry("900x700")  # Slightly larger
+        self.root.geometry("950x800")  # Increased size
         self.dark_mode = True
         self.cve_db = self.load_cve_database("cve_db.json")
+        self.suspicious_strings = [
+            "powershell.exe -EncodedCommand",
+            "http://malicious.com",
+            "registry key HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\Run",
+            "function CreateRemoteThread",
+            "api_peering",
+            ".exe", ".dll", ".vbs", ".js"
+        ]
+        self.current_embedding = None
 
         self.setup_ui()
         self.bind_drag_and_drop()
@@ -50,13 +62,21 @@ class SentenialXGUI:
         self.select_button = tk.Button(self.root, text="Select File", command=self.load_sample_dialog, bg=self.button_bg, fg=self.fg_color)
         self.select_button.pack(pady=5)
 
+        self.visualize_button = tk.Button(self.root, text="Visualize Embedding", command=self.handle_visualization, bg=self.button_bg, fg=self.fg_color)
+        self.visualize_button.pack(pady=5)
+
         self.save_button = tk.Button(self.root, text="Save Result", command=self.save_result, bg=self.button_bg, fg=self.fg_color)
         self.save_button.pack(pady=5)
 
         # Result Output
         result_label = tk.Label(self.root, text="Analysis Result:", font=("Helvetica", 12, "bold"), bg=self.bg_color, fg=self.fg_color)
         result_label.pack(pady=5, anchor="w")
-        self.result_text = self._add_scrollable_textbox(self.root, height=12)
+        self.result_text = self._add_scrollable_textbox(self.root, height=15)
+
+        # Suspicious Strings Output
+        suspicious_label = tk.Label(self.root, text="Suspicious Strings Found:", font=("Helvetica", 12, "bold"), bg=self.bg_color, fg=self.fg_color)
+        suspicious_label.pack(pady=5, anchor="w")
+        self.suspicious_text = self._add_scrollable_textbox(self.root, height=5, bg="#f0f8ff" if not self.dark_mode else "#303030", fg="#00008b" if not self.dark_mode else "#add8e6")
 
         # CVE Display Panel
         cve_label = tk.Label(self.root, text="Matched CVE Information:", font=("Helvetica", 12, "bold"), bg=self.bg_color, fg=self.fg_color)
@@ -102,12 +122,13 @@ class SentenialXGUI:
 
         try:
             self.display_log(f"Collecting sample: {file_path}")
-            sample_data = collect_sample(file_path)
+            sample_data = collect_sample(file_path, suspicious_strings=self.suspicious_strings)
 
             with open(file_path, 'r', errors='ignore') as f:
                 text = f.read(1000)
 
             embedding = get_embedding(text)
+            self.current_embedding = embedding
             embedding_np = np.array(embedding)
 
             result = {
@@ -123,6 +144,9 @@ class SentenialXGUI:
             self.result_text.delete(1.0, tk.END)
             self.result_text.insert(tk.END, json.dumps(result, indent=2))
 
+            # Display suspicious strings
+            self.display_suspicious_strings(sample_data.get("matched_suspicious_strings", []))
+
             # Match and display CVEs
             cve_ids = sample_data.get("cve_ids", [])
             matched_cves = self.match_cves(cve_ids)
@@ -131,6 +155,13 @@ class SentenialXGUI:
             self.display_log("Sample analysis complete.")
         except Exception as e:
             self.display_error(e)
+
+    def display_suspicious_strings(self, strings):
+        self.suspicious_text.delete(1.0, tk.END)
+        if strings:
+            self.suspicious_text.insert(tk.END, "\n".join(strings))
+        else:
+            self.suspicious_text.insert(tk.END, "No suspicious strings found.")
 
     def match_cves(self, cve_ids):
         matched = {}
@@ -148,6 +179,30 @@ class SentenialXGUI:
                 self.cve_panel.insert(tk.END, f"Published: {data.get('published', 'N/A')}\n\n")
         else:
             self.cve_panel.insert(tk.END, "No matching CVEs found in the database.")
+
+    def handle_visualization(self):
+        if self.current_embedding is not None:
+            self.visualize_embedding(self.current_embedding)
+        else:
+            messagebox.showwarning("No Embedding", "Load a sample first to generate an embedding.")
+
+    def visualize_embedding(self, embedding):
+        try:
+            X = np.array(embedding).reshape(1, -1)
+            pca = PCA(n_components=2)
+            X_pca = pca.fit_transform(X)
+
+            plt.figure(figsize=(6, 5))
+            plt.scatter(X_pca[:, 0], X_pca[:, 1], color='#a020f0')  # Vibrant purple
+            plt.title("PCA Visualization of Embedding", color=self.fg_color)
+            plt.xlabel("Principal Component 1", color=self.fg_color)
+            plt.ylabel("Principal Component 2", color=self.fg_color)
+            plt.grid(True, color='#555555')
+            plt.gca().set_facecolor(self.bg_color)
+            plt.tick_params(colors=self.fg_color)
+            plt.show()
+        except Exception as e:
+            messagebox.showerror("Visualization Error", str(e))
 
     def save_result(self):
         if not self.last_result:
@@ -183,8 +238,10 @@ class SentenialXGUI:
         self.root.configure(bg=self.bg_color)
         self.label.config(bg=self.bg_color, fg=self.fg_color)
         self.select_button.config(bg=self.button_bg, fg=self.fg_color)
+        self.visualize_button.config(bg=self.button_bg, fg=self.fg_color)
         self.save_button.config(bg=self.button_bg, fg=self.fg_color)
         self.result_text.config(bg=self.entry_bg, fg=self.fg_color, insertbackground=self.fg_color)
+        self.suspicious_text.config(bg="#f0f8ff" if not self.dark_mode else "#303030", fg="#00008b" if not self.dark_mode else "#add8e6", insertbackground=self.fg_color)
         self.cve_panel.config(bg="#f5f5f5" if not self.dark_mode else "#333333", fg="#000000" if not self.dark_mode else "#dcdcdc", insertbackground=self.fg_color)
         self.log_frame.config(bg=self.bg_color)
         for widget in self.log_frame.winfo_children():
@@ -203,120 +260,6 @@ class SentenialXGUI:
             self.fg_color = "#000000"
             self.entry_bg = "#ffffff"
             self.button_bg = "#dddddd"
-
-if __name__ == "__main__":
-    root = tk.Tk()
-    app = SentenialXGUI(root)
-    root.mainloop()
-import tkinter as tk
-from tkinter import filedialog, messagebox, scrolledtext
-import json
-import os
-
-import matplotlib.pyplot as plt
-from sklearn.decomposition import PCA
-import numpy as np
-
-from core.ingestor.collector import collect_sample
-from core.neural_engine.profiler import get_embedding
-
-class SentenialXGUI:
-    def __init__(self, root):
-        self.root = root
-        self.root.title("SentenialX A.I. Threat Collector")
-        self.root.geometry("800x650")
-
-        self.label = tk.Label(root, text="Choose a threat sample to analyze", font=("Helvetica", 14))
-        self.label.pack(pady=10)
-
-        self.select_button = tk.Button(root, text="Select File", command=self.load_sample)
-        self.select_button.pack(pady=5)
-
-        self.visualize_button = tk.Button(root, text="Visualize Embedding", command=self.handle_visualization)
-        self.visualize_button.pack(pady=5)
-
-        # Result JSON Output
-        self.result_text = scrolledtext.ScrolledText(root, height=15, width=90)
-        self.result_text.pack(pady=10)
-
-        # CVE Display Panel
-        self.cve_label = tk.Label(root, text="Matched CVE Information", font=("Helvetica", 12, "bold"))
-        self.cve_label.pack()
-        self.cve_panel = scrolledtext.ScrolledText(root, height=10, width=90, bg="#f5f5f5")
-        self.cve_panel.pack(pady=5)
-
-        self.current_embedding = None
-
-    def load_sample(self):
-        file_path = filedialog.askopenfilename()
-        if not file_path:
-            return
-
-        try:
-            sample_data = collect_sample(file_path)
-
-            with open(file_path, 'r', errors='ignore') as f:
-                text = f.read(1000)
-
-            embedding = get_embedding(text)
-            self.current_embedding = embedding
-
-            # Load CVE DB and match
-            matched_cves = self.match_cves(sample_data.get("cve_ids", []))
-
-            # Display results
-            result = {
-                "sample_info": sample_data,
-                "embedding_preview": embedding[:10].tolist()
-            }
-
-            self.result_text.delete(1.0, tk.END)
-            self.result_text.insert(tk.END, json.dumps(result, indent=2))
-
-            self.cve_panel.delete(1.0, tk.END)
-            if matched_cves:
-                for cve_id, data in matched_cves.items():
-                    self.cve_panel.insert(tk.END, f"{cve_id} - Severity: {data['severity']}\n")
-                    self.cve_panel.insert(tk.END, f"{data['description']}\nPublished: {data['published']}\n\n")
-            else:
-                self.cve_panel.insert(tk.END, "No matching CVEs found.")
-        except Exception as e:
-            messagebox.showerror("Error", str(e))
-
-    def match_cves(self, cve_ids):
-        try:
-            with open("cve_db.json", "r") as f:
-                cve_db = json.load(f)
-        except FileNotFoundError:
-            return {}
-
-        matched = {}
-        for cve_id in cve_ids:
-            if cve_id in cve_db:
-                matched[cve_id] = cve_db[cve_id]
-        return matched
-
-    def handle_visualization(self):
-        if self.current_embedding:
-            self.visualize_embedding(self.current_embedding)
-        else:
-            messagebox.showwarning("No Embedding", "Load a sample first to generate an embedding.")
-
-    def visualize_embedding(self, embedding):
-        try:
-            X = np.array(embedding).reshape(1, -1)
-            pca = PCA(n_components=2)
-            X_pca = pca.fit_transform(X)
-
-            plt.figure(figsize=(5, 4))
-            plt.scatter(X_pca[:, 0], X_pca[:, 1], color='red')
-            plt.title("PCA Visualization of Embedding")
-            plt.xlabel("Component 1")
-            plt.ylabel("Component 2")
-            plt.grid(True)
-            plt.show()
-        except Exception as e:
-            messagebox.showerror("Visualization Error", str(e))
 
 if __name__ == "__main__":
     root = tk.Tk()
