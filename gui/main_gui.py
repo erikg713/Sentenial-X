@@ -208,3 +208,117 @@ if __name__ == "__main__":
     root = tk.Tk()
     app = SentenialXGUI(root)
     root.mainloop()
+import tkinter as tk
+from tkinter import filedialog, messagebox, scrolledtext
+import json
+import os
+
+import matplotlib.pyplot as plt
+from sklearn.decomposition import PCA
+import numpy as np
+
+from core.ingestor.collector import collect_sample
+from core.neural_engine.profiler import get_embedding
+
+class SentenialXGUI:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("SentenialX A.I. Threat Collector")
+        self.root.geometry("800x650")
+
+        self.label = tk.Label(root, text="Choose a threat sample to analyze", font=("Helvetica", 14))
+        self.label.pack(pady=10)
+
+        self.select_button = tk.Button(root, text="Select File", command=self.load_sample)
+        self.select_button.pack(pady=5)
+
+        self.visualize_button = tk.Button(root, text="Visualize Embedding", command=self.handle_visualization)
+        self.visualize_button.pack(pady=5)
+
+        # Result JSON Output
+        self.result_text = scrolledtext.ScrolledText(root, height=15, width=90)
+        self.result_text.pack(pady=10)
+
+        # CVE Display Panel
+        self.cve_label = tk.Label(root, text="Matched CVE Information", font=("Helvetica", 12, "bold"))
+        self.cve_label.pack()
+        self.cve_panel = scrolledtext.ScrolledText(root, height=10, width=90, bg="#f5f5f5")
+        self.cve_panel.pack(pady=5)
+
+        self.current_embedding = None
+
+    def load_sample(self):
+        file_path = filedialog.askopenfilename()
+        if not file_path:
+            return
+
+        try:
+            sample_data = collect_sample(file_path)
+
+            with open(file_path, 'r', errors='ignore') as f:
+                text = f.read(1000)
+
+            embedding = get_embedding(text)
+            self.current_embedding = embedding
+
+            # Load CVE DB and match
+            matched_cves = self.match_cves(sample_data.get("cve_ids", []))
+
+            # Display results
+            result = {
+                "sample_info": sample_data,
+                "embedding_preview": embedding[:10].tolist()
+            }
+
+            self.result_text.delete(1.0, tk.END)
+            self.result_text.insert(tk.END, json.dumps(result, indent=2))
+
+            self.cve_panel.delete(1.0, tk.END)
+            if matched_cves:
+                for cve_id, data in matched_cves.items():
+                    self.cve_panel.insert(tk.END, f"{cve_id} - Severity: {data['severity']}\n")
+                    self.cve_panel.insert(tk.END, f"{data['description']}\nPublished: {data['published']}\n\n")
+            else:
+                self.cve_panel.insert(tk.END, "No matching CVEs found.")
+        except Exception as e:
+            messagebox.showerror("Error", str(e))
+
+    def match_cves(self, cve_ids):
+        try:
+            with open("cve_db.json", "r") as f:
+                cve_db = json.load(f)
+        except FileNotFoundError:
+            return {}
+
+        matched = {}
+        for cve_id in cve_ids:
+            if cve_id in cve_db:
+                matched[cve_id] = cve_db[cve_id]
+        return matched
+
+    def handle_visualization(self):
+        if self.current_embedding:
+            self.visualize_embedding(self.current_embedding)
+        else:
+            messagebox.showwarning("No Embedding", "Load a sample first to generate an embedding.")
+
+    def visualize_embedding(self, embedding):
+        try:
+            X = np.array(embedding).reshape(1, -1)
+            pca = PCA(n_components=2)
+            X_pca = pca.fit_transform(X)
+
+            plt.figure(figsize=(5, 4))
+            plt.scatter(X_pca[:, 0], X_pca[:, 1], color='red')
+            plt.title("PCA Visualization of Embedding")
+            plt.xlabel("Component 1")
+            plt.ylabel("Component 2")
+            plt.grid(True)
+            plt.show()
+        except Exception as e:
+            messagebox.showerror("Visualization Error", str(e))
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = SentenialXGUI(root)
+    root.mainloop()
