@@ -39,3 +39,78 @@ def retrain(self, X, y):
     except Exception as e:
         log(f'NeuralEngine: Retrain error - {e}')
 
+import os import json import time import logging import subprocess from threading import Thread
+
+Setup logging
+
+logger = logging.getLogger(name) logger.setLevel(logging.INFO) handler = logging.FileHandler("logs/countermeasures.log") formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s") handler.setFormatter(formatter) logger.addHandler(handler)
+
+class Countermeasures: def init(self, config_path="config.json"): self.load_config(config_path) logger.info("Countermeasures initialized.")
+
+def load_config(self, path):
+    try:
+        with open(path, "r") as f:
+            self.config = json.load(f)
+        logger.info(f"Config loaded from {path}.")
+    except Exception as e:
+        logger.error(f"Failed to load config: {e}")
+        self.config = {}
+
+def isolate_process(self, pid):
+    try:
+        subprocess.run(["taskkill", "/PID", str(pid), "/F"], check=True)
+        logger.info(f"Isolated process {pid} successfully.")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to isolate process {pid}: {e}")
+        return False
+
+def quarantine_file(self, file_path):
+    try:
+        quarantine_dir = self.config.get("quarantine_dir", "quarantine")
+        os.makedirs(quarantine_dir, exist_ok=True)
+        base_name = os.path.basename(file_path)
+        destination = os.path.join(quarantine_dir, base_name)
+        os.rename(file_path, destination)
+        logger.info(f"Quarantined file {file_path} to {destination}.")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to quarantine file {file_path}: {e}")
+        return False
+
+def rollback_changes(self, snapshot_path):
+    try:
+        subprocess.run(["systemrestore", "/restorepoint", snapshot_path], check=True)
+        logger.info(f"Rolled back to snapshot: {snapshot_path}.")
+        return True
+    except Exception as e:
+        logger.error(f"Rollback failed: {e}")
+        return False
+
+def execute_countermeasures(self, threats):
+    logger.info(f"Executing countermeasures for threats: {threats}")
+    threads = []
+    for threat in threats:
+        t = Thread(target=self.handle_threat, args=(threat,))
+        t.start()
+        threads.append(t)
+    for t in threads:
+        t.join()
+
+def handle_threat(self, threat):
+    try:
+        threat_type = threat.get("type")
+        target = threat.get("target")
+        if threat_type == "process":
+            self.isolate_process(target)
+        elif threat_type == "file":
+            self.quarantine_file(target)
+        elif threat_type == "rollback":
+            self.rollback_changes(target)
+        else:
+            logger.warning(f"Unknown threat type: {threat_type}")
+    except Exception as e:
+        logger.error(f"Error handling threat {threat}: {e}")
+
+if name == "main": cm = Countermeasures() sample_threats = [ {"type": "file", "target": "infected.exe"}, {"type": "process", "target": 1234}, ] cm.execute_countermeasures(sample_threats)
+
