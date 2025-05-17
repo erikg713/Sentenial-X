@@ -1,6 +1,10 @@
 main.py
 
-from core.ingestor.collector import collect_sample from core.neural_engine.profiler import get_embedding import tkinter as tk from tkinter import filedialog, messagebox import json
+from core.ingestor.collector import collect_sample 
+from core.neural_engine.profiler import get_embedding
+import tkinter as tk from tkinter
+import filedialog, messagebox 
+import json
 
 class SentenialXGUI: def init(self, root): self.root = root self.root.title("SentenialX A.I. Threat Collector") self.root.geometry("600x400")
 
@@ -29,6 +33,9 @@ def load_sample(self):
             "embedding_preview": embedding[:10].tolist()  # Truncate for display
         }
         self.result_text.delete(1.0, tk.END)
-        self.result_text.insert(tk.END
+        self.result_text.insert(tk.END, json.dumps(result, indent=2))
+    except Exception as e:
+        messagebox.showerror("Error", str(e))
 
+if name == "main": root = tk.Tk() app = SentenialXGUI(root) root.mainloop()
 
