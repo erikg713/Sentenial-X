@@ -130,3 +130,35 @@ sentenialx-ai/
 ├── main.py                    # Core runner
 └── README.md
 
+1. LearningEngine Design Overview
+
+Responsibilities:
+
+Ingest new event data (telemetry, alerts, logs) continuously.
+
+Store and preprocess data for ML model training/updating.
+
+Retrain or fine-tune models on new labeled data or feedback.
+
+Select adaptive countermeasure actions based on threat analysis and learned policies.
+
+Maintain model versions and metadata for auditing and rollback.
+
+
+Core Components:
+
+Data Storage (in-memory buffer + persistent store)
+
+Feature Extraction & Preprocessing
+
+Model Management (train, update, save, load)
+
+Action Selection (policy-based or RL-based)
+
+Feedback Processing (update labeled datasets)
+
+
+
+---
+
+2. LearningEngine Basic Code
