@@ -4,7 +4,39 @@ import json
 import logging
 from core.neural_engine import NeuralEngine
 from utils.helpers import load_config, get_timestamp
+from learning_engine import LearningEngine
+from telemetry import TelemetryListener
+from feedback import FeedbackCollector
 
+class Countermeasures:
+
+    def __init__(self, config):
+        self.config = config
+        self.learning_engine = LearningEngine()
+        self.feedback_collector = FeedbackCollector()
+        self.telemetry_listener = TelemetryListener(callback=self.ingest_telemetry)
+
+    def ingest_telemetry(self, event):
+        # Stream new data into learning engine
+        self.learning_engine.update_with_event(event)
+
+    def receive_feedback(self, detection_id, label):
+        # Analyst feedback on detection result
+        self.feedback_collector.store_feedback(detection_id, label)
+        self.learning_engine.retrain_if_needed()
+
+    def apply_countermeasure(self, threat):
+        # Use adaptive policies
+        action = self.learning_engine.select_best_action(threat)
+        self.execute_action(action)
+
+    def execute_action(self, action):
+        # Isolate/quarantine/rollback with logs
+        pass
+
+    def start(self):
+        # Start telemetry stream
+        self.telemetry_listener.start()
 logger = logging.getLogger(name)
 
 class CountermeasureEngine: def init(self, config_path='config.json'): self.config = load_config(config_path) self.engine = NeuralEngine() self.actions_log = [] self.load_predefined_rules()
