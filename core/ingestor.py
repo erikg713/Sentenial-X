@@ -1,6 +1,11 @@
 """ core/ingester.py Optimized for SentenialX A.I - handles dynamic data stream ingestion and preprocessing. """
 
-import os import json import hashlib import logging from datetime import datetime from utils.logger import setup_logger
+import os
+import json 
+import hashlib
+import logging
+from datetime import datetime
+from utils.logger import setup_logger
 
 logger = setup_logger("ingester")
 
