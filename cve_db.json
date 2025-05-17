@@ -1,1 +1,14 @@
+{
+  "CVE-2023-1234": {
+    "description": "A vulnerability exists in...",
+    "severity": "High",
+    "published": "2023-05-15"
+  },
+  "CVE-2023-5678": {
+    "description": "Another security flaw...",
+    "severity": "Medium",
+    "published": "2023-06-01"
+  }
+  // ... more CVE entries
+}
 
