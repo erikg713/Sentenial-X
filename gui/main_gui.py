@@ -1,23 +1,36 @@
 import tkinter as tk
-from tkinter import filedialog, messagebox
+from tkinter import filedialog, messagebox, scrolledtext
 import os
 import json
 import numpy as np
 
 from core.ingestor.collector import collect_sample
 from core.neural_engine.profiler import get_embedding
-from utils.logger import logger
+from utils.logger import logger  # Make sure this is set up
 
 class SentenialXGUI:
     def __init__(self, root):
         self.root = root
         self.root.title("SentenialX A.I. Threat Collector")
-        self.root.geometry("800x600")
+        self.root.geometry("900x700")  # Slightly larger
         self.dark_mode = True
+        self.cve_db = self.load_cve_database("cve_db.json")
 
         self.setup_ui()
         self.bind_drag_and_drop()
         self.last_result = None
+
+    def load_cve_database(self, db_path):
+        try:
+            with open(db_path, "r") as f:
+                return json.load(f)
+        except FileNotFoundError:
+            self.display_log(f"Warning: CVE database not found at {db_path}")
+            return {}
+        except json.JSONDecodeError:
+            self.display_log(f"Error: Could not decode JSON from {db_path}")
+            return {}
+        return {}
 
     def setup_ui(self):
         self.set_theme()
@@ -40,26 +53,26 @@ class SentenialXGUI:
         self.save_button = tk.Button(self.root, text="Save Result", command=self.save_result, bg=self.button_bg, fg=self.fg_color)
         self.save_button.pack(pady=5)
 
-        self.result_frame = tk.Frame(self.root, bg=self.bg_color)
-        self.result_frame.pack(pady=10, fill=tk.BOTH, expand=True)
+        # Result Output
+        result_label = tk.Label(self.root, text="Analysis Result:", font=("Helvetica", 12, "bold"), bg=self.bg_color, fg=self.fg_color)
+        result_label.pack(pady=5, anchor="w")
+        self.result_text = self._add_scrollable_textbox(self.root, height=12)
 
-        self.result_text = self._add_scrollable_textbox(self.result_frame)
+        # CVE Display Panel
+        cve_label = tk.Label(self.root, text="Matched CVE Information:", font=("Helvetica", 12, "bold"), bg=self.bg_color, fg=self.fg_color)
+        cve_label.pack(pady=5, anchor="w")
+        self.cve_panel = self._add_scrollable_textbox(self.root, height=8, bg="#f5f5f5" if not self.dark_mode else "#333333", fg="#000000" if not self.dark_mode else "#dcdcdc")
 
+        # Log Output
         self.log_frame = tk.Frame(self.root, bg=self.bg_color)
         self.log_frame.pack(pady=5, fill=tk.BOTH, expand=True)
-        tk.Label(self.log_frame, text="Logs:", bg=self.bg_color, fg=self.fg_color).pack(anchor="w")
+        tk.Label(self.log_frame, text="Logs:", bg=self.bg_color, fg=self.fg_color, anchor="w").pack()
+        self.log_text = self._add_scrollable_textbox(self.log_frame, height=6)
 
-        self.log_text = self._add_scrollable_textbox(self.log_frame)
-        self.log_text.configure(height=6)
-    
-    def _add_scrollable_textbox(self, parent):
-        scrollbar = tk.Scrollbar(parent)
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        text_widget = tk.Text(parent, wrap=tk.WORD, yscrollcommand=scrollbar.set,
-                              bg=self.entry_bg, fg=self.fg_color, insertbackground=self.fg_color)
-        text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        scrollbar.config(command=text_widget.yview)
-        return text_widget
+    def _add_scrollable_textbox(self, parent, height=10, width=80, bg=None, fg=None):
+        text_area = scrolledtext.ScrolledText(parent, wrap=tk.WORD, height=height, width=width, bg=bg or self.entry_bg, fg=fg or self.fg_color, insertbackground=fg or self.fg_color)
+        text_area.pack(fill=tk.BOTH, expand=True)
+        return text_area
 
     def bind_drag_and_drop(self):
         self.root.bind("<Drag>", lambda e: "break")
@@ -109,9 +122,32 @@ class SentenialXGUI:
             self.last_result = result
             self.result_text.delete(1.0, tk.END)
             self.result_text.insert(tk.END, json.dumps(result, indent=2))
+
+            # Match and display CVEs
+            cve_ids = sample_data.get("cve_ids", [])
+            matched_cves = self.match_cves(cve_ids)
+            self.display_cve_info(matched_cves)
+
             self.display_log("Sample analysis complete.")
         except Exception as e:
             self.display_error(e)
+
+    def match_cves(self, cve_ids):
+        matched = {}
+        for cve_id in cve_ids:
+            if cve_id in self.cve_db:
+                matched[cve_id] = self.cve_db[cve_id]
+        return matched
+
+    def display_cve_info(self, matched_cves):
+        self.cve_panel.delete(1.0, tk.END)
+        if matched_cves:
+            for cve_id, data in matched_cves.items():
+                self.cve_panel.insert(tk.END, f"{cve_id} - Severity: {data.get('severity', 'N/A')}\n")
+                self.cve_panel.insert(tk.END, f"Description: {data.get('description', 'No description available')}\n")
+                self.cve_panel.insert(tk.END, f"Published: {data.get('published', 'N/A')}\n\n")
+        else:
+            self.cve_panel.insert(tk.END, "No matching CVEs found in the database.")
 
     def save_result(self):
         if not self.last_result:
@@ -145,6 +181,16 @@ class SentenialXGUI:
         self.dark_mode = not self.dark_mode
         self.set_theme()
         self.root.configure(bg=self.bg_color)
+        self.label.config(bg=self.bg_color, fg=self.fg_color)
+        self.select_button.config(bg=self.button_bg, fg=self.fg_color)
+        self.save_button.config(bg=self.button_bg, fg=self.fg_color)
+        self.result_text.config(bg=self.entry_bg, fg=self.fg_color, insertbackground=self.fg_color)
+        self.cve_panel.config(bg="#f5f5f5" if not self.dark_mode else "#333333", fg="#000000" if not self.dark_mode else "#dcdcdc", insertbackground=self.fg_color)
+        self.log_frame.config(bg=self.bg_color)
+        for widget in self.log_frame.winfo_children():
+            if isinstance(widget, tk.Label):
+                widget.config(bg=self.bg_color, fg=self.fg_color)
+        self.log_text.config(bg=self.entry_bg, fg=self.fg_color, insertbackground=self.fg_color)
 
     def set_theme(self):
         if self.dark_mode:
@@ -157,81 +203,6 @@ class SentenialXGUI:
             self.fg_color = "#000000"
             self.entry_bg = "#ffffff"
             self.button_bg = "#dddddd"
-import tkinter as tk
-from tkinter import filedialog, messagebox, scrolledtext
-import json
-import os
-
-from core.ingestor.collector import collect_sample
-from core.neural_engine.profiler import get_embedding
-
-class SentenialXGUI:
-    def __init__(self, root):
-        self.root = root
-        self.root.title("SentenialX A.I. Threat Collector")
-        self.root.geometry("800x600")
-
-        self.label = tk.Label(root, text="Choose a threat sample to analyze", font=("Helvetica", 14))
-        self.label.pack(pady=10)
-
-        self.select_button = tk.Button(root, text="Select File", command=self.load_sample)
-        self.select_button.pack(pady=5)
-
-        # Result JSON Output
-        self.result_text = scrolledtext.ScrolledText(root, height=15, width=90)
-        self.result_text.pack(pady=10)
-
-        # CVE Display Panel
-        self.cve_label = tk.Label(root, text="Matched CVE Information", font=("Helvetica", 12, "bold"))
-        self.cve_label.pack()
-        self.cve_panel = scrolledtext.ScrolledText(root, height=10, width=90, bg="#f5f5f5")
-        self.cve_panel.pack(pady=5)
-
-    def load_sample(self):
-        file_path = filedialog.askopenfilename()
-        if not file_path:
-            return
-
-        try:
-            sample_data = collect_sample(file_path)
-            with open(file_path, 'r', errors='ignore') as f:
-                text = f.read(1000)
-            embedding = get_embedding(text)
-
-            # Load CVE DB and match
-            matched_cves = self.match_cves(sample_data.get("cve_ids", []))
-
-            # Display results
-            result = {
-                "sample_info": sample_data,
-                "embedding_preview": embedding[:10].tolist()
-            }
-
-            self.result_text.delete(1.0, tk.END)
-            self.result_text.insert(tk.END, json.dumps(result, indent=2))
-
-            self.cve_panel.delete(1.0, tk.END)
-            if matched_cves:
-                for cve_id, data in matched_cves.items():
-                    self.cve_panel.insert(tk.END, f"{cve_id} - {data['severity']}\n")
-                    self.cve_panel.insert(tk.END, f"{data['description']}\nPublished: {data['published']}\n\n")
-            else:
-                self.cve_panel.insert(tk.END, "No matching CVEs found.")
-        except Exception as e:
-            messagebox.showerror("Error", str(e))
-
-    def match_cves(self, cve_ids):
-        try:
-            with open("cve_db.json", "r") as f:
-                cve_db = json.load(f)
-        except FileNotFoundError:
-            return {}
-
-        matched = {}
-        for cve_id in cve_ids:
-            if cve_id in cve_db:
-                matched[cve_id] = cve_db[cve_id]
-        return matched
 
 if __name__ == "__main__":
     root = tk.Tk()
