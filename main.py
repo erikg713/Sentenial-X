@@ -1,5 +1,5 @@
 from tkinter import Tk
-from gui.main_gui import SentenialXGUI
+from gui.sentenialx_gui import SentenialXGUI
 
 if __name__ == "__main__":
     root = Tk()
