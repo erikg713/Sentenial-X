@@ -4,6 +4,8 @@ from queue import Queue
 import time
 import os
 import random
+from utils import logger
+logger.log_threat(timestamp, ip, threat_type, severity)
 
 # Shared queue for real-time threat reporting
 threat_queue = Queue()
