@@ -1,8 +1,5 @@
 import logging
 import os
-# utils/logger.py
-
-import os
 from datetime import datetime
 
 LOG_FILE = "logs/threats.log"
