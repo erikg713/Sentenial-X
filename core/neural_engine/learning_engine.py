@@ -126,3 +126,91 @@ class LearningEngine:
             print(f"[LearningEngine] Loaded model version {self.model_version}")
         except Exception as e:
             print(f"[LearningEngine] Failed to load model: {e}")
+import os
+import pickle
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.preprocessing import LabelEncoder
+import numpy as np
+import threading
+import time
+
+class LearningEngine:
+    def __init__(self, model_path="models/rf_model.pkl"):
+        self.model_path = model_path
+        self.data_buffer = []
+        self.labels = []
+        self.label_encoder = LabelEncoder()
+        self.model = None
+        self.model_version = 0
+        self.load_model()
+
+    def load_model(self):
+        if os.path.exists(self.model_path):
+            with open(self.model_path, 'rb') as f:
+                self.model, self.label_encoder, self.model_version = pickle.load(f)
+            print(f"[LearningEngine] Loaded model version {self.model_version}")
+        else:
+            self.model = RandomForestClassifier(n_estimators=50)
+            print("[LearningEngine] No saved model found. Starting fresh.")
+
+    def save_model(self):
+        with open(self.model_path, 'wb') as f:
+            pickle.dump((self.model, self.label_encoder, self.model_version), f)
+        print(f"[LearningEngine] Model saved. Version: {self.model_version}")
+
+    def ingest_event(self, event):
+        features = self.extract_features(event)
+        self.data_buffer.append(features)
+        # Label is unknown at this stage, so keep labels and data aligned later
+        print(f"[LearningEngine] Event ingested with features: {features}")
+
+    def extract_features(self, event):
+        # Simple numeric feature vector from event dict
+        # Customize your feature extraction here
+        severity = event.get('severity', 0)
+        # Hash to numeric feature: simple sum of ASCII codes (not ideal but demo)
+        payload_hash = event.get('payload_hash', '')
+        hash_val = sum(ord(c) for c in payload_hash) % 1000
+        return [severity, hash_val]
+
+    def receive_feedback(self, features, label):
+        self.data_buffer.append(features)
+        self.labels.append(label)
+        print(f"[LearningEngine] Received feedback for features {features} with label '{label}'")
+
+    def retrain_if_ready(self):
+        if len(self.labels) < 5:
+            print("[LearningEngine] Not enough labeled data to retrain.")
+            return
+        print(f"[LearningEngine] Training model on {len(self.labels)} samples...")
+        # Encode string labels to numbers
+        y_encoded = self.label_encoder.fit_transform(self.labels)
+        X = np.array(self.data_buffer[-len(self.labels):])  # last n labeled samples only
+        self.model.fit(X, y_encoded)
+        self.model_version += 1
+        self.save_model()
+        print(f"[LearningEngine] Model retrained. Version: {self.model_version}")
+
+    def select_action(self, features):
+        if self.model is None or not self.labels:
+            print("[LearningEngine] Model not ready, defaulting to monitor action.")
+            return "monitor"
+        X = np.array(features).reshape(1, -1)
+        pred_encoded = self.model.predict(X)[0]
+        pred_label = self.label_encoder.inverse_transform([pred_encoded])[0]
+        # Map labels to actions (customize this)
+        action_map = {
+            "benign": "monitor",
+            "malicious": "isolate",
+            "suspicious": "alert"
+        }
+        action = action_map.get(pred_label, "monitor")
+        return action
+
+    def start_retrain_scheduler(self, interval_sec=300):
+        def retrain_loop():
+            while True:
+                self.retrain_if_ready()
+                time.sleep(interval_sec)
+        t = threading.Thread(target=retrain_loop, daemon=True)
+        t.start()
