@@ -1,4 +1,24 @@
-# core/neural_engine/learning_engine.py
+from core.neural_engine.learning_engine import LearningEngine
+
+class BehavioralIDS:
+    def __init__(self):
+        self.engine = LearningEngine(mode="deep")
+        self.log = []
+
+    def analyze(self, packet_features):
+        decision = self.engine.select_action(packet_features)
+        self._respond(decision, packet_features)
+
+    def _respond(self, decision, features):
+        if decision == "monitor":
+            print("[IDS] Normal activity.")
+        elif decision == "alert":
+            print("[IDS] Suspicious pattern detected!")
+            self.log.append({"action": "alert", "features": features})
+        elif decision == "isolate":
+            print("[IDS] Malicious pattern! Isolating source.")
+            self.log.append({"action": "isolate", "features": features})
+            # trigger firewall rule or system response# core/neural_engine/learning_engine.py
 import threading
 import time
 import json
