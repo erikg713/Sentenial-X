@@ -1,3 +1,5 @@
+# Sentenial X A.I.
+The ultimate cyber defense platform powered by advanced AI technologies. Sentenial X A.I. is designed to learn, adapt, and mitigate threats in real time, ensuring your digital infrastructure remains secure against evolving cyberattacks.
 ---
 
 Project: Sentenial X A.I. — Deep Neural Threat Engine
@@ -115,8 +117,4 @@ models/
 logs/
 ├── audit.log
 ├── threats.json
-└── reports/
-    └── breach_may23_gdpr.txt
-
-
----
+└── 
