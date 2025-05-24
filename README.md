@@ -70,6 +70,12 @@ See individual modules in `core/`, `models/`, and `logs/` for advanced setup.
 
 ---
 
+Root structure for Sentenial X A.I.
+
+sentenial_core/ ├── cortex/                         # Neuro-Semantic Threat Cortex │   ├── init.py │   ├── intent_reconstructor.py     # Rebuilds attacker intent from semantic payloads │   ├── malicious_embedding_analyzer.py  # Embeds and classifies malicious intent │   └── zero_day_predictor.py       # Predicts unseen exploits using LLM embeddings │ ├── compliance/                    # Compliance Intelligence Grid │   ├── init.py │   ├── legal_ontology_parser.py   # Parses GDPR, HIPAA, NIST, etc. │   ├── regulatory_vector_matcher.py │   ├── ai_audit_tracer.py         # Tracks decisions vs compliance matrices │   └── fine_impact_estimator.py │ ├── orchestrator/                 # Adaptive Response Orchestrator │   ├── init.py │   ├── playbook_assembler.py │   ├── analyst_emulator.py       # Mimics expert SOC analyst behavior │   └── incident_reflex_manager.py │ ├── simulator/                    # Breach Simulation & Learning Engine │   ├── init.py │   ├── wormgpt_clone.py          # LLM red team generator │   ├── synthetic_attack_fuzzer.py │   └── blind_spot_tracker.py │ ├── forensics/                    # Forensic Quantum Logchain │   ├── init.py │   ├── ledger_sequencer.py │   ├── truth_vector_hasher.py │   └── chain_of_custody_builder.py │ ├── interfaces/                   # Shared interfaces and adapters │   ├── logger.py │   ├── config.py │   └── adapters.py │ └── sentinel_main.py              # Main execution brain for Sentenial X A.I.
+
+---
+
 ## Directory Structure
 
 ```
