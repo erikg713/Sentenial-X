@@ -1,5 +1,8 @@
-SentenialX A.I.
+Sentenial X A.I. — Next-Gen Web Application Defense Engine
 
+From zero-day exploits to massive bot-driven assaults, the modern threat landscape demands more than outdated signature-based firewalls.
+
+Sentenial X A.I. delivers powerful, self-hosted, and autonomous web application protection — built for elite defensive and offensive threat environments.
 The Ultimate Cyber Guardian — Built to Learn, Adapt, and Strike Back
 
 ### Core Capabilities (v1.0 Blueprint)
