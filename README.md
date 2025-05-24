@@ -1,19 +1,21 @@
-Sentenial X A.I. — Next-Gen Web Application Defense Engine
+### Sentenial X A.I. — Next-Gen Web Application Defense Engine
 
-From zero-day exploits to massive bot-driven assaults, the modern threat landscape demands more than outdated signature-based firewalls.
+## From zero-day exploits to massive bot-driven assaults, the modern threat landscape demands more than outdated signature-based firewalls.
 
-Sentenial X A.I. delivers powerful, self-hosted, and autonomous web application protection — built for elite defensive and offensive threat environments.
-The Ultimate Cyber Guardian — Built to Learn, Adapt, and Strike Back
+#### Sentenial X A.I. delivers powerful, self-hosted, and autonomous web application protection — built for elite defensive and offensive threat environments.
+
+### The Ultimate Cyber Guardian — Built to Learn, Adapt, and Strike Back
 
 ### Core Capabilities (v1.0 Blueprint)
 
 ## WormGPT Threat Ingestor
-Actively harvests AI-generated malware payloads, phishing scripts, droppers, ransomware logic, etc.
-→ Feeds them into adaptive sandboxed neural analysis.
+
+# Actively harvests AI-generated malware payloads, phishing scripts, droppers, ransomware logic, etc.
+# → Feeds them into adaptive sandboxed neural analysis.
 
 ## Neural Recon Layer
-Reverse-engineers attacks, generates semantic + behavioral embeddings for pattern matching.
-→ Think: “recognize future zero-days before they exist.”
+### Reverse-engineers attacks, generates semantic + behavioral embeddings for pattern matching.
+### → Think: “recognize future zero-days before they exist.”
 
 ## Countermeasure Engine
 
@@ -40,12 +42,13 @@ Reverse-engineers attacks, generates semantic + behavioral embeddings for patter
 ### IP traceback / geolocation heatmap
 
 
-* AI Immune System Loop
+* AI Immune System Loop *
 
-* Learns from every attack.
+* Learns from every attack.*
 
-* Fine-tunes its own detection neurons.
-* Builds immunity over time.
+* Fine-tunes its own detection neurons.*
+
+* Builds immunity over time.*
 
 
 SentenialX_AI/
@@ -95,6 +98,7 @@ SentenialX/
 ├── config/
 │   └── settings.json          # Behavior toggles (defense-only / counter-offensive)
 └── README.md
+From zero-day exploits to large-scale bot attacks — the demand for a powerful, self-hosted, and user-friendly web application security solution has never been greater.
 
 
 ---
