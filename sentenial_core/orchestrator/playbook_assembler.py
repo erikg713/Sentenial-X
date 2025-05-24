@@ -61,4 +61,4 @@ class PlaybookAssembler:
             "criticality": criticality,
             "actions": list(dict.fromkeys(playbook)),  # remove duplicates, preserve order
             "score": score
-      }
+        }
