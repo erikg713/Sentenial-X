@@ -1,29 +1,29 @@
 """
-sentenial_core.interfaces
+agents
 
-Defines agents for SentenialXAi system.
+Core agent interfaces and base classes for the SentenialX A.I. system.
 """
 
 from abc import ABC, abstractmethod
+from typing import Any
 
 __all__ = [
-    # List public interface classes here as you add them, e.g.:
-    # "DataProvider",
-    # "EventListener",
+    "Agent",
 ]
 
-# Example interface template for future use.
-class InterfaceTemplate(ABC):
+class Agent(ABC):
     """
-    Abstract base class template for SentenialX interfaces.
+    Abstract base class for all agents in the SentenialX system.
+    Agents are expected to implement the core operational method `process`.
     """
 
     @abstractmethod
-    def process(self, *args, **kwargs):
+    def process(self, *args: Any, **kwargs: Any) -> Any:
         """
-        Process data or events. Should be implemented by subclasses.
+        Core method for processing data or events.
+        Must be implemented by all subclasses.
         """
         pass
 
 # Clean up namespace
-del ABC, abstractmethod
+del ABC, abstractmethod, Any
