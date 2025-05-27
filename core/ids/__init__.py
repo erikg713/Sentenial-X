@@ -1,27 +1,21 @@
-# core/ids/__init__.py
-
 import importlib
 import os
+import re
+import logging
 from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor
 
-# Expandable dictionary of threat signatures
-SIGNATURES = {
-    "sql": [
-        "' OR 1=1",
-        "SELECT * FROM",
-        "DROP TABLE",
-    ],
-    "xss": [
-        "<script>",
-        "onerror=",
-        "alert(",
-    ],
-    "brute": [
-        "admin",
-        "password123",
-        "login",
-    ],
-}
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+
+# Load threat signatures from external JSON
+SIGNATURES_FILE = os.path.join(os.path.dirname(__file__), "signatures.json")
+try:
+    with open(SIGNATURES_FILE, "r") as f:
+        SIGNATURES = json.load(f)
+except FileNotFoundError:
+    SIGNATURES = {}  # Default to empty if file is not found
+    logging.warning("Signature file not found. Using empty signature set.")
 
 def detect_intrusion(payload: str) -> dict:
     """
@@ -37,7 +31,7 @@ def detect_intrusion(payload: str) -> dict:
         (category, keyword)
         for category, keywords in SIGNATURES.items()
         for keyword in keywords
-        if keyword.lower() in payload.lower()
+        if re.search(re.escape(keyword), payload, re.IGNORECASE)
     ]
 
     if matches:
@@ -67,7 +61,7 @@ def run_all_ids(target: str, silent: bool = False) -> list:
         if f.endswith("_ids.py") and f != os.path.basename(__file__)
     ]
 
-    for file in ids_files:
+    def execute_module(file):
         module_name = f"core.ids.{file[:-3]}"
         try:
             module = importlib.import_module(module_name)
@@ -75,16 +69,19 @@ def run_all_ids(target: str, silent: bool = False) -> list:
                 raise AttributeError("Module missing 'run_detection' function")
             result = module.run_detection(target)
             result["module"] = file[:-3]
-            results.append(result)
             if not silent:
                 print(f"[IDS] {file[:-3]}: {result.get('status', 'N/A')} - {result.get('message', '')}")
+            return result
         except Exception as exc:
-            results.append({
+            error_message = {
                 "module": file[:-3],
                 "status": "error",
-                "message": str(exc)
-            })
-            if not silent:
-                print(f"[IDS] {file[:-3]}: error - {exc}")
+                "message": str(exc),
+            }
+            logging.error(f"Error in module {file[:-3]}: {exc}")
+            return error_message
+
+    with ThreadPoolExecutor() as executor:
+        results = list(executor.map(execute_module, ids_files))
 
     return results
