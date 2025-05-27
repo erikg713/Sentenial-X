@@ -3,7 +3,13 @@ SentenialX Forensics Module
 
 This package provides forensic utilities and analysis tools for SentenialX A.I.
 Submodules should be imported here to make them available at the package level.
-"""
+"""from .file_analysis import get_file_metadata
+from .log_extractor import extract_logs
+from .timeline_builder import build_timeline
+from .snapshot_collector import collect_system_snapshot
+from .browser_history import extract_chrome_history
+from .memory_dump import create_memory_dump
+from .utils import ensure_directories, write_json
 
 import logging
 
