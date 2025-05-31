@@ -97,3 +97,195 @@ def save_action_log(self, filepath='logs/countermeasure_log.json'):
 
 if name == 'main': cm = CountermeasureEngine() sample_threat = { 'signature': 'anomalous_behavior_sequence_xyz', 'target': '192.168.1.25', 'origin': 'endpoint-agent-14' } result = cm.execute_countermeasures(sample_threat) print(json.dumps(result, indent=2)) cm.save_action_log()
 
+import pika
+import json
+import logging
+from multiprocessing import Process
+import time
+import os
+from flask import Flask, jsonify
+from threat_detection import run_threat_detection
+from file_monitor import start_file_monitoring
+from internet_scanner import start_internet_scanning
+from predictive_capabilities import run_predictive_capabilities
+from countermeasures import Countermeasures
+
+# Configure logging for the orchestrator
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    filename='sentenial_x_orchestrator.log',
+    filemode='a'
+)
+
+# RabbitMQ configuration
+RABBITMQ_HOST = 'localhost'
+QUEUES = {
+    'threat_detection': 'threat_detection_queue',
+    'file_monitor': 'file_monitor_queue',
+    'internet_scanner': 'internet_scanner_queue',
+    'predictive': 'predictive_queue',
+    'countermeasures': 'countermeasures_queue'
+}
+
+# Flask app for status monitoring
+app = Flask(__name__)
+system_status = {
+    'threat_detection': 'stopped',
+    'file_monitor': 'stopped',
+    'internet_scanner': 'stopped',
+    'predictive': 'stopped',
+    'countermeasures': 'stopped'
+}
+
+# Save module code in separate files for modularity
+# threat_detection.py
+THREAT_DETECTION_CODE = """
+import pandas as pd
+from sklearn.ensemble import IsolationForest
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.compose import ColumnTransformer
+import pika
+import json
+import logging
+
+logging.basicConfig(level=logging.INFO, filename='sentenial_x_threat_detection.log', filemode='a')
+
+def run_threat_detection():
+    data = pd.read_csv('kddcup.data_10_percent.gz', header=None)
+    columns = ['duration', 'protocol_type', 'service', 'flag', 'src_bytes', 'dst_bytes', 'land',
+               'wrong_fragment', 'urgent', 'hot', 'num_failed_logins', 'logged_in', 'num_compromised',
+               'root_shell', 'su_attempted', 'num_root', 'num_file_creations', 'num_shells',
+               'num_access_files', 'num_outbound_cmds', 'is_host_login', 'is_guest_login', 'count',
+               'srv_count', 'serror_rate', 'srv_serror_rate', 'rerror_rate', 'srv_rerror_rate',
+               'same_srv_rate', 'diff_srv_rate', 'srv_diff_host_rate', 'dst_host_count',
+               'dst_host_srv_count', 'dst_host_same_srv_rate', 'dst_host_diff_srv_rate',
+               'dst_host_same_src_port_rate', 'dst_host_srv_diff_host_rate', 'dst_host_serror_rate',
+               'dst_host_srv_serror_rate', 'dst_host_rerror_rate', 'dst_host_srv_rerror_rate', 'label']
+    data.columns = columns
+    X = data.drop('label', axis=1)
+    categorical_cols = ['protocol_type', 'service', 'flag']
+    numerical_cols = [col for col in X.columns if col not in categorical_cols]
+    preprocessor = ColumnTransformer(
+        transformers=[
+            ('num', StandardScaler(), numerical_cols),
+            ('cat', OneHotEncoder(handle_unknown='ignore'), categorical_cols)
+        ]
+    )
+    X_normal = X[data['label'] == 'normal.']
+    X_transformed = preprocessor.fit_transform(X_normal)
+    model = IsolationForest(contamination=0.01, random_state=42)
+    model.fit(X_transformed)
+    
+    connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
+    channel = connection.channel()
+    channel.queue_declare(queue='threat_detection_queue')
+    
+    logging.info("Threat Detection module running...")
+    X_test_transformed = preprocessor.transform(X)
+    predictions = model.predict(X_test_transformed)
+    for idx, pred in enumerate(predictions):
+        if pred == -1:  # Anomaly detected
+            message = {'type': 'anomaly', 'index': idx, 'timestamp': str(pd.Timestamp.now())}
+            channel.basic_publish(exchange='', routing_key='threat_detection_queue', body=json.dumps(message))
+            logging.info(f"Anomaly detected at index {idx}")
+    connection.close()
+"""
+
+# file_monitor.py
+FILE_MONITOR_CODE = """
+import time
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler
+import clamd
+import logging
+import pika
+import json
+import os
+
+logging.basicConfig(level=logging.INFO, filename='sentenial_x_file_monitor.log', filemode='a')
+
+class FileMonitor(FileSystemEventHandler):
+    def __init__(self, watch_directory):
+        self.watch_directory = watch_directory
+        self.clamd = clamd.ClamdUnixSocket()
+        self.connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
+        self.channel = self.connection.channel()
+        self.channel.queue_declare(queue='file_monitor_queue')
+
+    def on_created(self, event):
+        if not event.is_directory:
+            logging.info(f"File created: {event.src_path}")
+            self.scan_file(event.src_path)
+
+    def on_modified(self, event):
+        if not event.is_directory:
+            logging.info(f"File modified: {event.src_path}")
+            self.scan_file(event.src_path)
+
+    def scan_file(self, file_path):
+        try:
+            if os.path.exists(file_path):
+                result = self.clamd.scan(file_path)
+                for file, details in result.items():
+                    status, signature = details
+                    if status == "FOUND":
+                        message = {'type': 'malware', 'file': file, 'signature': signature, 'timestamp': str(pd.Timestamp.now())}
+                        self.channel.basic_publish(exchange='', routing_key='file_monitor_queue', body=json.dumps(message))
+                        logging.error(f"Malware detected in {file}: {signature}")
+        except Exception as e:
+            logging.error(f"Error scanning {file_path}: {e}")
+
+    def __del__(self):
+        self.connection.close()
+
+def start_file_monitoring():
+    watch_directory = "./monitored_folder"
+    if not os.path.exists(watch_directory):
+        os.makedirs(watch_directory)
+    event_handler = FileMonitor(watch_directory)
+    observer = Observer()
+    observer.schedule(event_handler, watch_directory, recursive=True)
+    observer.start()
+    logging.info(f"Started monitoring directory: {watch_directory}")
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        observer.stop()
+    observer.join()
+"""
+
+# internet_scanner.py
+INTERNET_SCANNER_CODE = """
+import scrapy
+from scrapy.crawler import CrawlerProcess
+import spacy
+import logging
+import pika
+import json
+import re
+
+logging.basicConfig(level=logging.INFO, filename='sentenial_x_internet_scanner.log', filemode='a')
+
+class SecuritySpider(scrapy.Spider):
+    name = 'security_spider'
+    start_urls = ['https://krebsonsecurity.com/']
+    
+    def __init__(self):
+        self.nlp = spacy.load("en_core_web_sm")
+        self.connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
+        self.channel = self.connection.channel()
+        self.channel.queue_declare(queue='internet_scanner_queue')
+
+    def parse(self, response):
+        article_links = response.css('h2.entry-title a::attr(href)').getall()
+        for link in article_links:
+            yield response.follow(link, callback=self.parse_article)
+
+    def parse_article(self, response):
+        title = response.css('h1.entry-title::text').get(default='').strip()
+        content = ' '.join(response.css('div.entry-content p::text').getall()).strip()
+        text = f"{title}. {content}"
+        doc = self.nlp(text)
+        cve_ids = re.findall(r'CVE-\\d{4}-\\d{4,
