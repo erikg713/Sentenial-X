@@ -2,11 +2,19 @@ import os
 import time
 import json
 import logging
+import pika
 from core.neural_engine import NeuralEngine
 from utils.helpers import load_config, get_timestamp
 from learning_engine import LearningEngine
 from telemetry import TelemetryListener
 from feedback import FeedbackCollector
+from multiprocessing import Process
+from flask import Flask, jsonify
+from threat_detection import run_threat_detection
+from file_monitor import start_file_monitoring
+from internet_scanner import start_internet_scanning
+from predictive_capabilities import run_predictive_capabilities
+from countermeasures import Countermeasures
 
 class Countermeasures:
 
@@ -127,19 +135,6 @@ def save_action_log(self, filepath='logs/countermeasure_log.json'):
         logger.error(f"Failed to save action log: {e}")
 
 if name == 'main': cm = CountermeasureEngine() sample_threat = { 'signature': 'anomalous_behavior_sequence_xyz', 'target': '192.168.1.25', 'origin': 'endpoint-agent-14' } result = cm.execute_countermeasures(sample_threat) print(json.dumps(result, indent=2)) cm.save_action_log()
-
-import pika
-import json
-import logging
-from multiprocessing import Process
-import time
-import os
-from flask import Flask, jsonify
-from threat_detection import run_threat_detection
-from file_monitor import start_file_monitoring
-from internet_scanner import start_internet_scanning
-from predictive_capabilities import run_predictive_capabilities
-from countermeasures import Countermeasures
 
 # Configure logging for the orchestrator
 logging.basicConfig(
