@@ -5,13 +5,14 @@
 
 ---
 
-## Overview
+### Overview ###
 
-Sentenial X A.I. is an advanced cyber defense platform engineered for modern threat landscapes. Designed to continuously learn, adapt, and respond in real time, it safeguards your digital infrastructure with state-of-the-art AI, robust compliance automation, and proactive countermeasures.
+Sentenial X A.I. is an advanced cyber defense platform engineered for modern threat landscapes. Designed to continuously learn,adapt,and respond in real time, it safeguards your digital infrastructure with state-of-the-art AI,robust compliance, automation and proactive countermeasures.
 
 ---
 
-## Goals
+### Goals ###
+
 The main goals of Sentenial-X-A.I include:
 
 Automated security auditing
@@ -19,23 +20,24 @@ Compliance testing (e.g. ISO27001, PCI-DSS, HIPAA)
 Vulnerability detection
 The software (also) assists with:
 
-Configuration and asset management
-Software patch management
-System hardening
-Penetration testing (privilege escalation)
-Intrusion detection
-Audience
+•Configuration and asset management
+•Software patch management
+•System hardening
+•Penetration testing (privilege escalation)
+•Intrusion detection
+
+### Audience ###
+
 Typical users of the software:
+•System administrators
+•Auditors
+•Security officers
+•Penetration testers
+•Security professionals
 
-System administrators
-Auditors
-Security officers
-Penetration testers
-Security professionals
+### Core Capabilities ###
 
-## Core Capabilities
-
-### 1. Multimodal Threat Semantics Engine
+### 1. Multi-modal Threat Semantics Engine
 - **Contextual Understanding:** Leverages LLM-derived embeddings to analyze request intent beyond basic signatures.
 - **Advanced Detection:** Trained on a diverse corpus, including threat syntax, API abuse, prompt injection, LLM jailbreaks, and blackhat tool patterns (WormGPT, DarkBERT, FraudGPT).
 - **Deep Semantic Analysis:** Inspects HTTP headers, bodies, query strings, JSON payloads, and encoded/obfuscated data in real time.
@@ -61,11 +63,11 @@ Security professionals
 
 ---
 
-## Getting Started
+### Getting Started ###
 
 > **Note:** This project is in active development. Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
-
-### Installation
+---
+### Installation ###
 
 ```bash
 # Clone the repo
@@ -79,7 +81,7 @@ source venv/bin/activate
 # Install dependencies
 pip install -r requirements.txt
 ```
-
+---
 ### Basic Usage
 
 To launch the core threat engine:
@@ -93,7 +95,7 @@ See individual modules in `core/`, `models/`, and `logs/` for advanced setup.
 ---
 
 Root structure for Sentenial X A.I.
-
+```
 sentenial_core/ ├── cortex/                         # Neuro-Semantic Threat Cortex │   ├── init.py │   ├── intent_reconstructor.py     # Rebuilds attacker intent from semantic payloads │   ├── malicious_embedding_analyzer.py  # Embeds and classifies malicious intent │   └── zero_day_predictor.py       # Predicts unseen exploits using LLM embeddings │ ├── compliance/                    # Compliance Intelligence Grid │   ├── init.py │   ├── legal_ontology_parser.py   # Parses GDPR, HIPAA, NIST, etc. │   ├── regulatory_vector_matcher.py │   ├── ai_audit_tracer.py         # Tracks decisions vs compliance matrices │   └── fine_impact_estimator.py │ ├── orchestrator/                 # Adaptive Response Orchestrator │   ├── init.py │   ├── playbook_assembler.py │   ├── analyst_emulator.py       # Mimics expert SOC analyst behavior │   └── incident_reflex_manager.py │ ├── simulator/                    # Breach Simulation & Learning Engine │   ├── init.py │   ├── wormgpt_clone.py          # LLM red team generator │   ├── synthetic_attack_fuzzer.py │   └── blind_spot_tracker.py │ ├── forensics/                    # Forensic Quantum Logchain │   ├── init.py │   ├── ledger_sequencer.py │   ├── truth_vector_hasher.py │   └── chain_of_custody_builder.py │ ├── interfaces/                   # Shared interfaces and adapters │   ├── logger.py │   ├── config.py │   └── adapters.py │ └── sentinel_main.py              # Main execution brain for Sentenial X A.I.
 
 ---
