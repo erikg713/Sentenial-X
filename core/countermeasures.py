@@ -315,3 +315,181 @@ class SecuritySpider(scrapy.Spider):
         text = f"{title}. {content}"
         doc = self.nlp(text)
         cve_ids = re.findall(r'CVE-\\d{4}-\\d{4,
+# core/countermeasures.py
+
+import os
+import time
+import json
+import logging
+from multiprocessing import Process
+from flask import Flask, jsonify
+from typing import Any, Dict, List
+
+from core.neural_engine import NeuralEngine
+from utils.helpers import load_config, get_timestamp
+from learning_engine import LearningEngine
+from telemetry import TelemetryListener
+from feedback import FeedbackCollector
+from threat_detection import run_threat_detection
+from file_monitor import start_file_monitoring
+from internet_scanner import start_internet_scanning
+from predictive_capabilities import run_predictive_capabilities
+
+logger = logging.getLogger(__name__)
+
+class Countermeasures:
+    def __init__(self, config: Dict[str, Any]):
+        self.config = config
+        self.learning_engine = LearningEngine()
+        self.feedback_collector = FeedbackCollector()
+        self.telemetry_listener = TelemetryListener(callback=self.ingest_telemetry)
+
+    def ingest_telemetry(self, event: Dict[str, Any]) -> None:
+        """Streams new telemetry into the learning engine."""
+        self.learning_engine.update_with_event(event)
+
+    def receive_feedback(self, detection_id: str, label: str) -> None:
+        """Stores analyst feedback and triggers retraining if needed."""
+        self.feedback_collector.store_feedback(detection_id, label)
+        self.learning_engine.retrain_if_needed()
+
+    def apply_countermeasure(self, threat: Dict[str, Any]) -> None:
+        """Applies an adaptive policy for a detected threat."""
+        action = self.learning_engine.select_best_action(threat)
+        self.execute_action(action, threat)
+
+    def execute_action(self, action: str, threat_data: Dict[str, Any]) -> None:
+        """
+        Applies a specific countermeasure action to the given threat data.
+
+        Args:
+            action (str): The action to execute.
+            threat_data (dict): Information about the detected threat.
+        """
+        try:
+            logger.debug(f"Applying action: {action} on target: {threat_data.get('target')}")
+            if action == "isolate":
+                self.isolate_target(threat_data.get('target'))
+            elif action == "quarantine":
+                self.quarantine_file(threat_data.get('file_path'))
+            else:
+                logger.warning(f"Unknown action: {action}")
+            logger.info(f"Successfully applied action: {action}")
+        except Exception as e:
+            logger.error(f"Failed to apply action {action}: {e}")
+
+    def isolate_target(self, target: str) -> None:
+        """Logic to isolate a network target."""
+        logger.info(f"Isolating target: {target}")
+        # Implement system isolation logic here
+
+    def quarantine_file(self, file_path: str) -> None:
+        """Logic to quarantine a file."""
+        logger.info(f"Quarantining file: {file_path}")
+        # Implement file quarantine logic here
+
+    def start(self) -> None:
+        """Starts the telemetry listener."""
+        self.telemetry_listener.start()
+
+
+class CountermeasureEngine:
+    def __init__(self, config_path: str = 'config.json'):
+        self.config = load_config(config_path)
+        self.engine = NeuralEngine()
+        self.actions_log: List[Dict[str, Any]] = []
+        self.rules: List[Dict[str, Any]] = []
+        self.load_predefined_rules()
+
+    def load_predefined_rules(self) -> None:
+        rules_path = self.config.get('countermeasure_rules_path', 'data/rules/countermeasures.json')
+        try:
+            if os.path.exists(rules_path):
+                with open(rules_path, 'r') as file:
+                    self.rules = json.load(file)
+                    logger.info("Countermeasure rules loaded successfully.")
+            else:
+                logger.warning("No countermeasure rules file found. Proceeding with defaults.")
+                self.rules = []
+        except Exception as e:
+            logger.error(f"Failed to load countermeasure rules: {e}")
+            self.rules = []
+
+    def evaluate_threat(self, threat_signature: str) -> Dict[str, Any]:
+        prediction = self.engine.predict(threat_signature)
+        logger.debug(f"Threat prediction result: {prediction}")
+        return prediction
+
+    def execute_countermeasures(self, threat_data: Dict[str, Any]) -> Dict[str, Any]:
+        prediction = self.evaluate_threat(threat_data['signature'])
+        response = {
+            'threat_level': prediction.get('level', 'unknown'),
+            'actions_taken': [],
+            'timestamp': get_timestamp(),
+            'details': threat_data
+        }
+        for rule in self.rules:
+            if rule.get('trigger') in prediction.get('tags', []):
+                action = rule['action']
+                logger.info(f"Trigger matched: {rule['trigger']} -> Executing action: {action}")
+                response['actions_taken'].append(action)
+                self.apply_action(action, threat_data)
+        self.actions_log.append(response)
+        return response
+
+    def apply_action(self, action: str, threat_data: Dict[str, Any]) -> None:
+        logger.debug(f"Applying action: {action} on {threat_data.get('target')}")
+        # Implement actual system commands or integrations here
+
+    def get_action_log(self) -> List[Dict[str, Any]]:
+        return self.actions_log
+
+    def save_action_log(self, filepath: str = 'logs/countermeasure_log.json') -> None:
+        try:
+            with open(filepath, 'w') as file:
+                json.dump(self.actions_log, file, indent=2)
+            logger.info(f"Action log saved to {filepath}.")
+        except Exception as e:
+            logger.error(f"Failed to save action log: {e}")
+
+
+# Configure logging for the orchestrator at import time
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    filename='sentenial_x_orchestrator.log',
+    filemode='a'
+)
+
+# RabbitMQ configuration
+RABBITMQ_HOST = 'localhost'
+QUEUES = {
+    'threat_detection': 'threat_detection_queue',
+    'file_monitor': 'file_monitor_queue',
+    'internet_scanner': 'internet_scanner_queue',
+    'predictive': 'predictive_queue',
+    'countermeasures': 'countermeasures_queue'
+}
+
+# Flask app for status monitoring
+app = Flask(__name__)
+system_status = {
+    'threat_detection': 'stopped',
+    'file_monitor': 'stopped',
+    'internet_scanner': 'stopped',
+    'predictive': 'stopped',
+    'countermeasures': 'stopped'
+}
+
+# Note: For code modularity, keep other modules (threat_detection, file_monitor, etc.)
+# in their own files as in the original design.
+
+if __name__ == '__main__':
+    cm_engine = CountermeasureEngine()
+    sample_threat = {
+        'signature': 'anomalous_behavior_sequence_xyz',
+        'target': '192.168.1.25',
+        'origin': 'endpoint-agent-14'
+    }
+    result = cm_engine.execute_countermeasures(sample_threat)
+    print(json.dumps(result, indent=2))
