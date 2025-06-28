@@ -1,0 +1,8 @@
+2025-06-28 17:38:56,093 [WARNING] IP resolution failed for --help: [Errno -2] Name or service not known
+2025-06-28 17:38:56,094 [WARNING] Header fetch failed for https://--help: HTTPSConnectionPool(host='--help', port=443): Max retries exceeded with url: / (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x7f7e449420f0>: Failed to resolve '--help' ([Errno -2] Name or service not known)"))
+2025-06-28 17:38:56,095 [WARNING] Header fetch failed for http://--help: HTTPConnectionPool(host='--help', port=80): Max retries exceeded with url: / (Caused by NameResolutionError("<urllib3.connection.HTTPConnection object at 0x7f7e449427e0>: Failed to resolve '--help' ([Errno -2] Name or service not known)"))
+2025-06-28 17:38:56,096 [WARNING] Header fetch failed for http://--help: HTTPConnectionPool(host='--help', port=80): Max retries exceeded with url: / (Caused by NameResolutionError("<urllib3.connection.HTTPConnection object at 0x7f7e44942780>: Failed to resolve '--help' ([Errno -2] Name or service not known)"))
+2025-06-28 17:38:56,096 [INFO] Detected tech stack for http://--help: []
+2025-06-28 17:38:56,096 [ERROR] WHOIS lookup failed for --help: [Errno 2] No such file or directory: 'whois'
+2025-06-28 17:38:56,096 [INFO] Extracted emails: []
+2025-06-28 17:38:56,097 [INFO] Recon complete for --help
