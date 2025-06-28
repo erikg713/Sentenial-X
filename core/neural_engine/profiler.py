@@ -83,3 +83,34 @@ if __name__ == '__main__':
     # Example of fallback
     embedding_fallback = get_embedding(sample_text, method='unknown')
     print(f"\nFallback embedding: {embedding_fallback}")
+class EmbeddingModelManager:
+    def __init__(self):
+        self._sentence_transformer_model = None
+        self._distilbert_tokenizer = None
+        self._distilbert_model = None
+    
+    def get_sentence_transformer_embedding(self, text: str, model_name: str) -> list:
+        try:
+            if self._sentence_transformer_model is None or self._sentence_transformer_model.name != model_name:
+                self._sentence_transformer_model = SentenceTransformer(model_name)
+            embedding = self._sentence_transformer_model.encode([text])[0]
+            return embedding.tolist()
+        except Exception as e:
+            logger.error(f"Error generating Sentence Transformer embedding: {e}")
+            return [0.0] * 384
+
+    def get_transformers_embedding(self, text: str) -> list:
+        try:
+            if self._distilbert_tokenizer is None:
+                self._distilbert_tokenizer = AutoTokenizer.from_pretrained("distilbert-base-uncased")
+            if self._distilbert_model is None:
+                self._distilbert_model = AutoModel.from_pretrained("distilbert-base-uncased")
+            
+            tokens = self._distilbert_tokenizer(text, return_tensors='pt', truncation=True, padding=True)
+            with torch.no_grad():
+                output = self._distilbert_model(**tokens)
+            embedding = output.last_hidden_state.mean(dim=1).squeeze().numpy().tolist()
+            return embedding
+        except Exception as e:
+            logger.error(f"Error generating Transformers embedding: {e}")
+            return [0.0] * 768
