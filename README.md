@@ -343,5 +343,3 @@ python core/engine/fine_tuner_adapter.py --autotune
 * Injects adversarial samples into fine-tuning queue
 
 ---
-
-✅ Next: Shall I now move on to **Milestones** to help define a timeline for feature delivery and progress tracking?
