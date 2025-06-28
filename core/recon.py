@@ -176,10 +176,23 @@ def sanitize_domain(domain: str) -> str:
     if not domain:
         raise ValueError("Domain cannot be empty")
     
-    # Allow localhost, IP addresses, and standard domains
+    # Check for valid IPv4 address
+    def is_valid_ipv4(ip):
+        try:
+            parts = ip.split('.')
+            if len(parts) != 4:
+                return False
+            for part in parts:
+                if not (0 <= int(part) <= 255):
+                    return False
+            return True
+        except (ValueError, AttributeError):
+            return False
+    
+    # Allow localhost, valid IP addresses, and standard domains
     if not (domain == "localhost" or 
             re.match(r'^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', domain) or
-            re.match(r'^(\d{1,3}\.){3}\d{1,3}$', domain)):
+            is_valid_ipv4(domain)):
         raise ValueError(f"Invalid domain format: {domain}")
     
     return domain
