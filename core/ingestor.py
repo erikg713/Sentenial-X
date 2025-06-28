@@ -1,62 +1,90 @@
-""" core/ingester.py Optimized for SentenialX A.I - handles dynamic data stream ingestion and preprocessing. """
+"""core/ingestor.py - Optimized Data Ingestion for Sentenial-X A.I."""
 
 import os
-import json 
+import json
 import hashlib
 import logging
 from datetime import datetime
+from typing import List, Dict, Optional, Set
 from utils.logger import setup_logger
 
-logger = setup_logger("ingester")
+logger = setup_logger("ingestor")
 
-class DataIngester: def init(self, data_dir="data/samples"): self.data_dir = data_dir self.processed_hashes = set() self.ingested_data = []
 
-def _hash_file(self, filepath):
-    try:
-        with open(filepath, 'rb') as f:
-            return hashlib.sha256(f.read()).hexdigest()
-    except Exception as e:
-        logger.error(f"Hashing failed for {filepath}: {e}")
-        return None
+class DataIngester:
+    """
+    Handles dynamic data ingestion and preprocessing from a specified directory.
+    """
 
-def ingest(self):
-    logger.info(f"Starting ingestion from: {self.data_dir}")
-    for root, _, files in os.walk(self.data_dir):
-        for file in files:
-            path = os.path.join(root, file)
-            file_hash = self._hash_file(path)
-            if not file_hash or file_hash in self.processed_hashes:
-                continue
+    def __init__(self, data_dir: str = "data/samples"):
+        self.data_dir = data_dir
+        self.processed_hashes: Set[str] = set()
+        self.ingested_data: List[Dict] = []
 
-            try:
-                with open(path, 'r', encoding='utf-8', errors='ignore') as f:
-                    content = f.read()
+    def _hash_file(self, filepath: str) -> Optional[str]:
+        """
+        Generates a SHA-256 hash of the specified file.
+        Returns None if hashing fails.
+        """
+        sha256 = hashlib.sha256()
+        try:
+            with open(filepath, 'rb') as f:
+                for chunk in iter(lambda: f.read(8192), b''):
+                    sha256.update(chunk)
+            return sha256.hexdigest()
+        except Exception as exc:
+            logger.error(f"Hashing failed for {filepath}: {exc}")
+            return None
 
-                data_point = {
-                    "filename": file,
-                    "path": path,
-                    "hash": file_hash,
-                    "content": content,
-                    "timestamp": datetime.utcnow().isoformat()
-                }
+    def ingest(self) -> List[Dict]:
+        """
+        Ingests files from the data directory, avoiding duplicates using file hashes.
+        Returns a list of ingested data points.
+        """
+        logger.info(f"Starting ingestion from: {self.data_dir}")
+        for root, _, files in os.walk(self.data_dir):
+            for file in files:
+                path = os.path.join(root, file)
+                file_hash = self._hash_file(path)
+                if not file_hash or file_hash in self.processed_hashes:
+                    continue
 
-                self.ingested_data.append(data_point)
-                self.processed_hashes.add(file_hash)
-                logger.debug(f"Ingested: {file} [{file_hash}]")
+                try:
+                    with open(path, 'r', encoding='utf-8', errors='ignore') as f:
+                        content = f.read()
 
-            except Exception as e:
-                logger.error(f"Failed to ingest {path}: {e}")
+                    data_point = {
+                        "filename": file,
+                        "path": path,
+                        "hash": file_hash,
+                        "content": content,
+                        "timestamp": datetime.utcnow().isoformat()
+                    }
 
-    logger.info(f"Ingestion complete: {len(self.ingested_data)} new items.")
-    return self.ingested_data
+                    self.ingested_data.append(data_point)
+                    self.processed_hashes.add(file_hash)
+                    logger.debug(f"Ingested: {file} [{file_hash}]")
 
-def export_json(self, output_path="logs/ingested_data.json"):
-    try:
-        with open(output_path, 'w') as out:
-            json.dump(self.ingested_data, out, indent=2)
-        logger.info(f"Exported ingested data to {output_path}")
-    except Exception as e:
-        logger.error(f"Failed to export ingested data: {e}")
+                except Exception as exc:
+                    logger.error(f"Failed to ingest {path}: {exc}")
 
-if name == "main": ingester = DataIngester() ingester.ingest() ingester.export_json()
+        logger.info(f"Ingestion complete: {len(self.ingested_data)} new items.")
+        return self.ingested_data
 
+    def export_json(self, output_path: str = "logs/ingested_data.json") -> None:
+        """
+        Exports ingested data to a JSON file.
+        """
+        try:
+            os.makedirs(os.path.dirname(output_path), exist_ok=True)
+            with open(output_path, 'w', encoding='utf-8') as out:
+                json.dump(self.ingested_data, out, indent=2, ensure_ascii=False)
+            logger.info(f"Exported ingested data to {output_path}")
+        except Exception as exc:
+            logger.error(f"Failed to export ingested data: {exc}")
+
+
+if __name__ == "__main__":
+    ingester = DataIngester()
+    ingester.ingest()
+    ingester.export_json()
