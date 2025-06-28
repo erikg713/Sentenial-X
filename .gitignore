@@ -20,3 +20,11 @@ rad.json
 *.flf
 #Test results file
 TestResults.xml
+
+# Python specific
+__pycache__/
+*.py[cod]
+*$py.class
+*.log
+logs/countermeasure_log.json
+sentenial_x_*.log
