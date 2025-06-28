@@ -1,0 +1,8 @@
+ERROR:root:Failed to load config: [Errno 2] No such file or directory: 'config.json'
+WARNING:__main__:Rules file not found at data/rules/countermeasures.json. Using empty rule set.
+INFO:__main__:CountermeasureEngine initialized successfully
+INFO:__main__:Action log saved to logs/countermeasure_log.json (1 entries)
+ERROR:root:Failed to load config: [Errno 2] No such file or directory: 'config.json'
+WARNING:__main__:Rules file not found at data/rules/countermeasures.json. Using empty rule set.
+INFO:__main__:CountermeasureEngine initialized successfully
+INFO:__main__:Action log saved to logs/countermeasure_log.json (1 entries)
