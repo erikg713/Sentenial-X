@@ -4,44 +4,42 @@ import time
 import logging
 import tempfile
 import os
+from pathlib import Path
 from typing import Optional, Dict, Any
 
-# Initialize logging
+LOG_FILE = "payload_detonator.log"
+
 logging.basicConfig(
     level=logging.INFO,
-    format='[%(asctime)s] %(levelname)s - %(message)s',
+    format="[%(asctime)s] %(levelname)s: %(message)s",
     handlers=[
-        logging.FileHandler("payload_detonator.log"),
+        logging.FileHandler(LOG_FILE, encoding="utf-8"),
         logging.StreamHandler()
     ]
 )
 
 class PayloadDetonator:
-    def __init__(self, sandbox_dir: Optional[str] = None, timeout: int = 60):
-        self.sandbox_dir = sandbox_dir or tempfile.mkdtemp(prefix="payload_sandbox_")
+    def __init__(self, sandbox_dir: Optional[str] = None, timeout: int = 60) -> None:
+        self.sandbox_dir = Path(sandbox_dir) if sandbox_dir else Path(tempfile.mkdtemp(prefix="payload_sandbox_"))
         self.timeout = timeout
-        logging.info(f"Sandbox directory set to: {self.sandbox_dir}")
+        self._validate_sandbox()
+        logging.info(f"Sandbox directory: {self.sandbox_dir}")
+
+    def _validate_sandbox(self) -> None:
+        self.sandbox_dir.mkdir(parents=True, exist_ok=True)
 
     def detonate(self, payload_path: str, args: Optional[str] = None) -> Dict[str, Any]:
-        """
-        Executes the given payload inside the sandbox directory and captures its output.
+        payload = Path(payload_path)
+        if not payload.is_file():
+            err = f"Payload not found: {payload}"
+            logging.error(err)
+            raise FileNotFoundError(err)
 
-        Args:
-            payload_path (str): Path to the payload executable/script.
-            args (Optional[str]): Additional arguments for the payload.
-
-        Returns:
-            Dict[str, Any]: Dictionary containing execution details.
-        """
-        if not os.path.isfile(payload_path):
-            logging.error(f"Payload not found: {payload_path}")
-            raise FileNotFoundError(f"Payload not found: {payload_path}")
-
-        command = [payload_path] + shlex.split(args or "")
-        logging.info(f"Detonating payload: {' '.join(command)}")
+        cmd = [str(payload.resolve())] + shlex.split(args or "")
+        logging.info(f"Detonating payload: {' '.join(cmd)}")
 
         result = {
-            "command": command,
+            "command": cmd,
             "start_time": None,
             "end_time": None,
             "stdout": "",
@@ -51,69 +49,83 @@ class PayloadDetonator:
             "exception": None
         }
 
+        start = time.time()
+        result["start_time"] = start
         try:
-            result["start_time"] = time.time()
             proc = subprocess.run(
-                command,
+                cmd,
                 cwd=self.sandbox_dir,
                 capture_output=True,
                 text=True,
                 timeout=self.timeout
             )
-            result["end_time"] = time.time()
-            result["stdout"] = proc.stdout
-            result["stderr"] = proc.stderr
-            result["exit_code"] = proc.returncode
-            logging.info(f"Payload executed. Exit code: {proc.returncode}")
+            end = time.time()
+            result.update({
+                "end_time": end,
+                "stdout": proc.stdout,
+                "stderr": proc.stderr,
+                "exit_code": proc.returncode,
+            })
+            msg = f"Payload executed (Exit code: {proc.returncode})"
+            logging.info(msg)
         except subprocess.TimeoutExpired as ex:
-            result["end_time"] = time.time()
-            result["stdout"] = ex.stdout or ""
-            result["stderr"] = ex.stderr or ""
-            result["timeout"] = True
-            result["exception"] = str(ex)
-            logging.warning(f"Payload timed out after {self.timeout} seconds.")
+            end = time.time()
+            result.update({
+                "end_time": end,
+                "stdout": ex.stdout or "",
+                "stderr": ex.stderr or "",
+                "timeout": True,
+                "exception": f"Timeout ({self.timeout}s): {ex}"
+            })
+            logging.warning(result["exception"])
         except Exception as ex:
-            result["end_time"] = time.time()
-            result["exception"] = str(ex)
-            logging.error(f"Exception during payload detonation: {ex}")
-
-        # Optionally, log result details
-        self._log_result(result)
+            end = time.time()
+            result.update({
+                "end_time": end,
+                "exception": str(ex)
+            })
+            logging.error(f"Exception during detonation: {ex}")
+        finally:
+            self._log_result(result)
         return result
 
     def _log_result(self, result: Dict[str, Any]) -> None:
-        log_msg = (
-            f"Command: {' '.join(result['command'])}\n"
-            f"Start: {result['start_time']}\n"
-            f"End: {result['end_time']}\n"
-            f"Exit Code: {result['exit_code']}\n"
-            f"Timeout: {result['timeout']}\n"
-            f"Stdout: {result['stdout'][:500]}{'...' if len(result['stdout']) > 500 else ''}\n"
-            f"Stderr: {result['stderr'][:500]}{'...' if len(result['stderr']) > 500 else ''}\n"
-            f"Exception: {result['exception']}\n"
-            "----------------------------------------"
-        )
-        logging.info(log_msg)
+        log_lines = [
+            "---- Payload Detonation Report ----",
+            f"Command   : {' '.join(result['command'])}",
+            f"Start     : {result['start_time']}",
+            f"End       : {result['end_time']}",
+            f"Exit Code : {result['exit_code']}",
+            f"Timeout   : {result['timeout']}",
+            f"Stdout    : {result['stdout'][:800]}{'...[truncated]' if len(result['stdout']) > 800 else ''}",
+            f"Stderr    : {result['stderr'][:800]}{'...[truncated]' if len(result['stderr']) > 800 else ''}",
+            f"Exception : {result['exception']}",
+            "-----------------------------------"
+        ]
+        for line in log_lines:
+            logging.info(line)
 
-    def cleanup(self):
-        """ Removes the sandbox directory and its contents. """
-        if os.path.exists(self.sandbox_dir):
+    def cleanup(self) -> None:
+        if self.sandbox_dir.exists() and self.sandbox_dir.is_dir():
+            for item in self.sandbox_dir.glob("**/*"):
+                try:
+                    if item.is_file():
+                        item.unlink()
+                    elif item.is_dir():
+                        item.rmdir()
+                except Exception as ex:
+                    logging.warning(f"Failed to remove {item}: {ex}")
             try:
-                for root, dirs, files in os.walk(self.sandbox_dir, topdown=False):
-                    for name in files:
-                        os.remove(os.path.join(root, name))
-                    for name in dirs:
-                        os.rmdir(os.path.join(root, name))
-                os.rmdir(self.sandbox_dir)
-                logging.info(f"Cleaned up sandbox directory: {self.sandbox_dir}")
+                self.sandbox_dir.rmdir()
+                logging.info(f"Removed sandbox directory: {self.sandbox_dir}")
             except Exception as ex:
-                logging.error(f"Failed to clean up sandbox: {ex}")
+                logging.error(f"Could not remove sandbox dir: {ex}")
 
-# Example usage:
 if __name__ == "__main__":
     detonator = PayloadDetonator(timeout=30)
     try:
-        result = detonator.detonate('/path/to/payload', args="--option value")
-        print("Detonation Result:", result)
+        # Replace with a real payload and arguments for actual usage
+        res = detonator.detonate('/path/to/payload', args="--option value")
+        print("Detonation Result:", res)
     finally:
         detonator.cleanup()
