@@ -225,3 +225,123 @@ Open Plugin Support	Yes	No	No
 
 
 ---
+
+
+Here is the proposed **Implementation** section for Sentenial X A.I., based on the current directory structure, Python-based stack, and MVP scope.
+
+---
+
+## Implementation
+
+This section outlines how to build, deploy, and operate the MVP version of Sentenial X A.I. The implementation is Python-first and supports both monolithic and modular execution via CLI.
+
+---
+
+### 📁 Directory Structure
+
+```bash
+sentenial_core/
+├── cortex/                     # Semantic threat parsing
+├── compliance/                 # Regulatory alignment & auditing
+├── orchestrator/              # Reactive playbooks and AI analyst
+├── simulator/                 # Red team adversarial testing
+├── forensics/                 # Tamper-evident audit logging
+├── adapters/                  # HTTP/API/WAF interface hooks
+├── sentinel_main.py           # Central execution script
+```
+
+---
+
+### 🧱 Setup Instructions
+
+1. **Clone and Install**
+
+```bash
+git clone https://github.com/erikg713/Sentenial-X-A.I..git
+cd Sentenial-X-A.I.
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
+2. **Environment Configuration**
+
+Set up your config:
+
+```bash
+cp config/example.env config/.env
+```
+
+Environment variables include:
+
+* `LOG_LEVEL`
+* `MODEL_PATH`
+* `ENABLE_SIMULATOR`
+* `AUTO_SHUTDOWN_ON_THREAT=true`
+
+---
+
+### 🚀 Running the Core Engine
+
+Start the core semantic threat pipeline:
+
+```bash
+python core/engine/semantics_analyzer.py
+```
+
+This entry point:
+
+* Parses traffic from `http_parser.py`
+* Applies classifiers
+* Triggers orchestration via `incident_reflex_manager.py`
+
+---
+
+### 🛡️ Running in Monitor Mode (Passive Detection)
+
+```bash
+python sentinel_main.py --mode=passive
+```
+
+* No traffic is blocked or sandboxed.
+* Threats logged to `logs/threats.json`.
+
+---
+
+### ⚔️ Running in Defense Mode (Active Countermeasures)
+
+```bash
+python sentinel_main.py --mode=active
+```
+
+* Automatically triggers honeypots, ACLs, or session isolation.
+* Writes forensic records to `logs/audit.log`.
+
+---
+
+### 🧪 Simulate Threat Payloads
+
+Use the built-in fuzzer and red team model:
+
+```bash
+python core/simulator/synthetic_attack_fuzzer.py --mode=fuzz
+```
+
+* Outputs synthetic threat vectors for stress testing.
+
+---
+
+### 🧠 Continuous Learning Loop (Optional)
+
+Enable model refresh via:
+
+```bash
+python core/engine/fine_tuner_adapter.py --autotune
+```
+
+* Monitors new embeddings from `malicious_embedding_analyzer.py`
+* Injects adversarial samples into fine-tuning queue
+
+---
+
+✅ Next: Shall I now move on to **Milestones** to help define a timeline for feature delivery and progress tracking?
