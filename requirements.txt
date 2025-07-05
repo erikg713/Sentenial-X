@@ -1,2 +1,5 @@
-pip install matplotlib scikit-learn
-pip install pandas openpyxl fpdf
+pip install matplotlib 
+pip install scikit-learn
+pip install pandas
+pip install openpyxl 
+pip install fpdf
