@@ -142,6 +142,10 @@ logs/
 - [ ] Expanded API and protocol adapters
 - [ ] Advanced analytics dashboard
 
+## DOCKER BUILD ##
+docker build -t sentenial-x .
+docker run --rm -p 8000:8000 sentenial-x
+
 ---
 
 ## License
