@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Sentenial X Dashboard</title>
+</head>
+<body>
+  <h1>Threat Dashboard</h1>
+  <div id="data">Loading...</div>
+  <script>
+    fetch("/threats")
+      .then(res => res.json())
+      .then(data => {
+        document.getElementById("data").innerText = JSON.stringify(data, null, 2);
+      });
+  </script>
+</body>
+</html>
