@@ -73,6 +73,8 @@ Typical users of the software:
 # Clone the repo
 git clone https://github.com/erikg713/Sentenial-X-A.I..git
 cd Sentenial-X-A.I.
+cd dashboard
+python app.py
 
 # (Optional) Set up a Python virtual environment
 python3 -m venv venv
