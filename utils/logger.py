@@ -1,6 +1,10 @@
 import logging
 import os
 from datetime import datetime
+import structlog
+logger = structlog.get_logger()
+
+logger.info("threat_detected", ip="192.168.0.3", intent="injection", severity="high")
 
 LOG_FILE = "logs/threats.log"
 
