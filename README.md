@@ -76,7 +76,9 @@ cd Sentenial-X-A.I.
 
 # (Optional) Set up a Python virtual environment
 python3 -m venv venv
-source venv/bin/activate
+source venv/bin/activate ## MAC ##
+source venv/Scripts/activate ## WINDOWS ##
+
 
 # Install dependencies
 pip install -r requirements.txt
