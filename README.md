@@ -124,6 +124,51 @@ Automated Forensic Response: Logs and rollbacks every defensive action for foren
 - **Automated Response:** All actions logged for forensic analysis and rollback.
 
 ---
+### Root Directory Layout ###
+```bash
+sentenial-x-ai/
+├── apps/
+│   ├── api-gateway/               # FastAPI or gRPC orchestration layer
+│   ├── dashboard/                 # Next.js / React frontend (GUI dashboard)
+│   ├── pentest-suite/            # Red-team automation & exploit tooling
+│   └── ransomware-emulator/      # Ransomware behavior simulation (premium)
+│
+├── services/
+│   ├── auth/                     # RBAC, login, session, and API key service
+│   ├── agent-manager/           # Manages endpoint agents and config
+│   ├── threat-engine/           # Multi-modal LLM-based threat analyzer
+│   ├── jailbreak-detector/      # Prompt injection & jailbreak NLP engine
+│   ├── memory-core/             # Threat embeddings & custom model runner
+│   ├── compliance-engine/       # Compliance scanning & hardening logic
+│   ├── countermeasure-agent/    # Dynamic response engine (WASM/Python)
+│   └── legal-shield/            # Legal doc generator + report packager
+│
+├── libs/
+│   ├── core/                    # Shared utilities (logging, config, etc.)
+│   ├── ml/                      # ML model wrappers (PyTorch, ONNX, etc.)
+│   └── plugins/                 # Custom plugins (models, tools, scripts)
+│
+├── data/
+│   ├── embeddings/             # Vector DB (e.g., FAISS/Weaviate/Chroma)
+│   ├── logs/                   # Encrypted and signed logs
+│   └── reports/                # Generated compliance and legal reports
+│
+├── infra/
+│   ├── docker/                 # All Dockerfiles
+│   ├── k8s/                    # Helm charts, manifests
+│   └── terraform/              # Infra-as-code for cloud/VPC deployment
+│
+├── tests/
+│   ├── integration/            # Cross-module test cases
+│   └── unit/                   # Individual service/module unit tests
+│
+├── scripts/                    # Bootstrap, migrations, maintenance scripts
+├── .env.example                # Environment variable template
+├── requirements.txt            # Python dependencies (for orchestration & ML)
+├── package.json                # Frontend dependencies (dashboard)
+└── README.md                   # Project intro
+```
+---
 
 ### Getting Started ###
 
