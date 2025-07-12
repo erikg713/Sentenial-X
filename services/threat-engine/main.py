@@ -7,5 +7,3 @@ app.include_router(router)
 @app.get("/ping")
 def ping():
     return {"status": "ok"}
-
-
