@@ -1,1 +1,1 @@
-the
+from config.config import Config
