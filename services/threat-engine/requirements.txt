@@ -2,4 +2,5 @@ fastapi
 uvicorn
 sentence-transformers
 numpy
-
+re
+base64
