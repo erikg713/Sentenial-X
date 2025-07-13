@@ -24,7 +24,7 @@ dialogues = [
 
         r"what is your name ?",
 
-        ["I am a bot created by Analytics Drift. You can call me Soozy!",]
+        ["I am a bot created by Dev713. You can call me Sentenial X!",]
 
     ],
 
@@ -64,7 +64,7 @@ dialogues = [
 
         r"(.*) age?",
 
-        ["I'm a chatbot, bro. \nI do not have age.",]
+        ["I'm a chatbot, bro. \nI do not have an age.",]
 
     ],
 
@@ -80,7 +80,7 @@ dialogues = [
 
         r"(.*) created?",
 
-        ["XYZ created me using Python's NLTK library ","It’s a top secret ;)",]
+        ["DEV713 created me using Python's NLTK library ","It’s a top secret ;)",]
 
     ],
 
@@ -150,7 +150,7 @@ dialogues = [
 
     [
 
-        r"I am looking for online tutorials and courses to learn data science. Can you suggest some?",
+        r"I am looking for online tutorials and courses to learn data science and artificial-intelligence. Can you suggest some?",
 
         ["Analytics Drift has several articles offering clear, step-by-step guides with code examples for quick, practical learning in data science and AI."]
 
