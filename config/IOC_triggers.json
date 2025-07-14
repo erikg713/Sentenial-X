@@ -1,1 +1,68 @@
-add
+{
+  "ioc_triggers": [
+    {
+      "id": "IOC-001",
+      "type": "file_creation",
+      "description": "Suspicious executable dropped in temp directory",
+      "pattern": "C:\\\\Users\\\\.*\\\\AppData\\\\Local\\\\Temp\\\\.*\\.exe$",
+      "severity": "high",
+      "tags": ["dropper", "payload", "windows"]
+    },
+    {
+      "id": "IOC-002",
+      "type": "registry_key",
+      "description": "Persistence via Run key",
+      "pattern": "HKCU\\\\Software\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Run\\\\.*",
+      "severity": "medium",
+      "tags": ["persistence", "autorun"]
+    },
+    {
+      "id": "IOC-003",
+      "type": "network_connection",
+      "description": "Outbound connection to known C2 domain",
+      "pattern": ".*malicious-c2\\.net$",
+      "severity": "critical",
+      "tags": ["command-control", "exfiltration"]
+    },
+    {
+      "id": "IOC-004",
+      "type": "process_injection",
+      "description": "Remote thread injection into explorer.exe",
+      "pattern": "explorer\\.exe",
+      "severity": "critical",
+      "tags": ["injection", "evasion"]
+    },
+    {
+      "id": "IOC-005",
+      "type": "powershell_script",
+      "description": "Base64-encoded PowerShell payload detected",
+      "pattern": "powershell.*-enc.*[A-Za-z0-9+/=]{100,}",
+      "severity": "high",
+      "tags": ["obfuscation", "script", "powershell"]
+    },
+    {
+      "id": "IOC-006",
+      "type": "dns_request",
+      "description": "DNS request to dynamic DNS domain",
+      "pattern": ".*\\.duckdns\\.org$",
+      "severity": "medium",
+      "tags": ["dns", "c2", "exfil"]
+    },
+    {
+      "id": "IOC-007",
+      "type": "scheduled_task",
+      "description": "Suspicious scheduled task created for persistence",
+      "pattern": ".*\\\\Tasks\\\\MalwareTask$",
+      "severity": "medium",
+      "tags": ["taskschd", "persistence"]
+    },
+    {
+      "id": "IOC-008",
+      "type": "script_execution",
+      "description": "Execution of script with embedded encoded binary",
+      "pattern": ".*FromBase64String.*",
+      "severity": "high",
+      "tags": ["obfuscation", "execution"]
+    }
+  ]
+}
