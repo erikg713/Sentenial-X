@@ -1,1 +1,29 @@
+{
+  "name": "sentenialx-dashboard",
+  "version": "1.0.0",
+  "description": "Sentenial X Dashboard Web App",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "vite",
+    "build": "vite build",
+    "serve": "vite preview",
+    "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
+    "format": "prettier --write ."
+  },
+  "keywords": ["sentenial", "dashboard", "security", "pentest", "gui"],
+  "author": "SentenialX Labs",
+  "license": "MIT",
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "axios": "^1.4.0",
+    "react-router-dom": "^6.14.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.0.0",
+    "vite": "^4.0.0",
+    "eslint": "^8.50.0",
+    "prettier": "^3.0.0"
+  }
+}
 
