@@ -27,5 +27,56 @@
     "exploit_available": true,
     "attack_vector": "network",
     "references": [
-      "https://nvd.nist.gov/vuln/detail/CVE-20
+      "https://nvd.nist.gov/vuln/detail/CVE-2023-34567",
+      "https://logging.apache.org/log4j/2.x/security.html"
+    ]
+  },
+  {
+    "cve_id": "CVE-2022-1388",
+    "description": "F5 BIG-IP iControl REST endpoint vulnerable to unauthenticated RCE.",
+    "cvss_score": 9.8,
+    "severity": "Critical",
+    "affected_products": [
+      "F5 BIG-IP versions 16.x, 15.x, 14.x"
+    ],
+    "exploit_available": true,
+    "attack_vector": "network",
+    "references": [
+      "https://nvd.nist.gov/vuln/detail/CVE-2022-1388",
+      "https://support.f5.com/csp/article/K23605346"
+    ]
+  },
+  {
+    "cve_id": "CVE-2021-44228",
+    "description": "Apache Log4j2 JNDI lookup vulnerability allows remote code execution.",
+    "cvss_score": 10.0,
+    "severity": "Critical",
+    "affected_products": [
+      "Apache Log4j2 <= 2.14.1"
+    ],
+    "exploit_available": true,
+    "attack_vector": "network",
+    "references": [
+      "https://nvd.nist.gov/vuln/detail/CVE-2021-44228",
+      "https://logging.apache.org/log4j/2.x/security.html"
+    ]
+  },
+  {
+    "cve_id": "CVE-2020-1472",
+    "description": "Netlogon Elevation of Privilege Vulnerability (Zerologon).",
+    "cvss_score": 10.0,
+    "severity": "Critical",
+    "affected_products": [
+      "Windows Server 2019",
+      "Windows Server 2016",
+      "Windows Server 2012"
+    ],
+    "exploit_available": true,
+    "attack_vector": "network",
+    "references": [
+      "https://nvd.nist.gov/vuln/detail/CVE-2020-1472",
+      "https://www.secura.com/blog/zero-logon"
+    ]
+  }
+]
 
