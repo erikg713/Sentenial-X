@@ -3,14 +3,7 @@ from tkinter import ttk
 import threading
 import time
 import random
-
-# gui/visualizer/Realtimethreats.py
-
-import tkinter as tk
-from tkinter import ttk
-import threading
-import time
-from core import scanner  # Assume this provides `threat_queue`
+from core import scanner  
 import queue
 
 
