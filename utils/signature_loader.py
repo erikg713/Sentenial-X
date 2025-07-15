@@ -1,5 +1,3 @@
-# utils/signature_loader.py
-
 import csv
 
 class CSVSignatureManager:
