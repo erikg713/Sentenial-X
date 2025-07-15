@@ -13,10 +13,6 @@ class ThreatTable(QTableWidget):
         self.setAlternatingRowColors(True)
 
     def load_data(self, threats):
-        """
-        Expects threats as a list of dicts with keys:
-        'id', 'severity', 'name', 'description', 'tags' (list).
-        """
         self.setRowCount(len(threats))
         for row, threat in enumerate(threats):
             self.setItem(row, 0, QTableWidgetItem(str(threat.get("id", ""))))
@@ -37,9 +33,8 @@ class ThreatTable(QTableWidget):
 
     def color_for_severity(self, severity):
         return {
-            "Critical": "#d32f2f",  # Dark Red
-            "High": "#ff6b6b",      # Red
-            "Medium": "#ffc107",    # Amber
-            "Low": "#17a2b8",       # Blue
-        }.get(severity, "#9e9e9e")  # Default: Gray
-
+            "Critical": "#d32f2f",
+            "High": "#ff6b6b",
+            "Medium": "#ffc107",
+            "Low": "#17a2b8",
+        }.get(severity, "#9e9e9e")
