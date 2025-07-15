@@ -1,11 +1,11 @@
 import sys
-import requests
 from PySide6.QtWidgets import (
-    QApplication, QMainWindow, QWidget,
-    QVBoxLayout, QTableWidget, QTableWidgetItem
+    QApplication, QMainWindow, QWidget, QVBoxLayout, QTabWidget, QLabel
 )
 from PySide6.QtGui import QColor
 from PySide6.QtCore import Qt
+import requests
+from PySide6.QtWidgets import QTableWidget, QTableWidgetItem
 
 
 class ThreatTable(QTableWidget):
@@ -39,37 +39,57 @@ class ThreatTable(QTableWidget):
         }.get(severity, "#9e9e9e")
 
 
-class SentenialXDashboard(QMainWindow):
-    def __init__(self, api_url="http://localhost:5001/threats"):
+class MultiModuleDashboard(QMainWindow):
+    def __init__(self):
         super().__init__()
-        self.setWindowTitle("Sentenial X :: Threat Dashboard")
-        self.resize(1280, 800)
+        self.setWindowTitle("Sentenial-X Unified Dashboard")
+        self.resize(1400, 900)
 
-        self.api_url = api_url
-        self.table = ThreatTable()
+        self.tabs = QTabWidget()
+        self.setCentralWidget(self.tabs)
 
-        central_widget = QWidget()
-        layout = QVBoxLayout(central_widget)
-        layout.addWidget(self.table)
-        self.setCentralWidget(central_widget)
+        # Threat Dashboard Tab
+        self.threat_tab = QWidget()
+        threat_layout = QVBoxLayout(self.threat_tab)
+        self.threat_table = ThreatTable()
+        threat_layout.addWidget(self.threat_table)
+        self.tabs.addTab(self.threat_tab, "Threat Dashboard")
 
-        self.load_data()
+        # Load threat data initially
+        self.load_threats()
 
-    def load_data(self):
+        # Placeholder tabs for other modules
+        self.add_placeholder_tab("Ransomware Emulation")
+        self.add_placeholder_tab("Pentest Suite")
+        self.add_placeholder_tab("Zero-Day AI")
+        self.add_placeholder_tab("Telemetry")
+        self.add_placeholder_tab("Attack Graph")
+
+    def add_placeholder_tab(self, title):
+        placeholder = QWidget()
+        layout = QVBoxLayout(placeholder)
+        label = QLabel(f"{title} module UI coming soon...")
+        label.setAlignment(Qt.AlignCenter)
+        layout.addWidget(label)
+        self.tabs.addTab(placeholder, title)
+
+    def load_threats(self):
+        api_url = "http://localhost:5001/threats"
         try:
-            res = requests.get(self.api_url)
+            import requests
+            res = requests.get(api_url)
             res.raise_for_status()
-            threats = res.json()
-            if isinstance(threats, list):
-                self.table.load_data(threats)
+            data = res.json()
+            if isinstance(data, list):
+                self.threat_table.load_data(data)
             else:
-                print("[ERROR] API did not return a list.")
+                print("[ERROR] Threat API did not return a list")
         except Exception as e:
-            print(f"[ERROR] Failed to fetch threats: {e}")
+            print(f"[ERROR] Failed to load threats: {e}")
 
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    dashboard = SentenialXDashboard()
-    dashboard.show()
+    window = MultiModuleDashboard()
+    window.show()
     sys.exit(app.exec())
