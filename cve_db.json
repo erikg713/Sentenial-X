@@ -1,22 +1,31 @@
-{
-  "CVE-2023-1234": {
-    "description": "A vulnerability exists in...",
-    "severity": "High",
-    "published": "2023-05-15"
+[
+  {
+    "cve_id": "CVE-2024-12345",
+    "description": "Microsoft Windows RPC runtime allows remote code execution via crafted RPC packets.",
+    "cvss_score": 9.8,
+    "severity": "Critical",
+    "affected_products": [
+      "Windows Server 2019",
+      "Windows 10",
+      "Windows 11"
+    ],
+    "exploit_available": true,
+    "attack_vector": "network",
+    "references": [
+      "https://nvd.nist.gov/vuln/detail/CVE-2024-12345",
+      "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2024-12345"
+    ]
   },
-  "CVE-2023-5678": {
-    "description": "Another security flaw...",
-    "severity": "Medium",
-    "published": "2023-06-01"
-  }
-  // ... more CVE entries
-}
+  {
+    "cve_id": "CVE-2023-34567",
+    "description": "Apache Log4j2 vulnerable to remote code execution via JNDI injection.",
+    "cvss_score": 10.0,
+    "severity": "Critical",
+    "affected_products": [
+      "Apache Log4j2 2.0-beta9 to 2.14.1"
+    ],
+    "exploit_available": true,
+    "attack_vector": "network",
+    "references": [
+      "https://nvd.nist.gov/vuln/detail/CVE-20
 
-{
-  "CVE-2023-1234": {
-    "description": "Buffer overflow in ABC...",
-    "severity": "High",
-    "published": "2023-04-01"
-  },
-  ...
-}
