@@ -1,50 +1,126 @@
-libs/core/logging.py
+import logging
+import os
+import json
+from logging.handlers import RotatingFileHandler
 
-import logging import os import json from logging.handlers import RotatingFileHandler
+try:
+    from colorlog import ColoredFormatter
+    COLORLOG_AVAILABLE = True
+except ImportError:
+    print("[LOGGING] Optional: Install 'colorlog' for colored logs.")
+    COLORLOG_AVAILABLE = False
 
-try: from colorlog import ColoredFormatter COLORLOG_AVAILABLE = True except ImportError: print("[LOGGING] Optional: Install 'colorlog' for colored logs.") COLORLOG_AVAILABLE = False
+# Defaults
+DEFAULT_LOG_DIR = "logs"
+DEFAULT_LOG_FILE = "sentenialx.log"
+MAX_BYTES = 5 * 1024 * 1024  # 5MB
+BACKUP_COUNT = 3
 
-DEFAULT_LOG_DIR = "logs" DEFAULT_LOG_FILE = "sentenialx.log" MAX_BYTES = 5 * 1024 * 1024  # 5MB BACKUP_COUNT = 3
 
-MODULE_LOG_LEVELS = {} CONFIG_PATH = os.getenv("LOG_CONFIG_FILE", "config/logging_levels.json")
+def _load_module_levels(config_path: str) -> dict:
+    """
+    Load per-module log levels from JSON file.
+    Returns an empty dict if file not found or on parse errors.
+    """
+    if not os.path.exists(config_path):
+        return {}
+    try:
+        with open(config_path, "r") as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"[LOGGING] Failed to load log config '{config_path}': {e}")
+        return {}
 
-if os.path.exists(CONFIG_PATH): try: with open(CONFIG_PATH, "r") as f: MODULE_LOG_LEVELS = json.load(f) except Exception as e: print(f"[LOGGING] Failed to load log config: {e}")
 
-def setup_logger(name: str = "sentenialx", default_level: str = "INFO") -> logging.Logger: os.makedirs(DEFAULT_LOG_DIR, exist_ok=True) logger = logging.getLogger(name)
+def _get_plain_formatter() -> logging.Formatter:
+    return logging.Formatter(
+        "[%(asctime)s] [%(levelname)s] [%(name)s] :: %(message)s",
+        "%Y-%m-%d %H:%M:%S"
+    )
 
-module_base = name.split(".")[0]
-level = MODULE_LOG_LEVELS.get(module_base, default_level).upper()
 
-if level not in logging._nameToLevel:
-    print(f"[LOGGING] Invalid log level '{level}' for {name}, defaulting to INFO.")
-    level = "INFO"
+def _get_colored_formatter() -> ColoredFormatter:
+    return ColoredFormatter(
+        fmt="%(log_color)s[%(asctime)s] [%(levelname)s] [%(name)s] :: %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+        log_colors={
+            "DEBUG": "cyan",
+            "INFO": "green",
+            "WARNING": "yellow",
+            "ERROR": "red",
+            "CRITICAL": "bold_red"
+        }
+    )
 
-logger.setLevel(logging._nameToLevel[level])
 
-# Remove only our custom handlers
-for handler in list(logger.handlers):
-    if isinstance(handler, (logging.StreamHandler, RotatingFileHandler)):
-        logger.removeHandler(handler)
+class LoggerFactory:
+    def __init__(
+        self,
+        log_dir: str = DEFAULT_LOG_DIR,
+        log_file: str = DEFAULT_LOG_FILE,
+        max_bytes: int = MAX_BYTES,
+        backup_count: int = BACKUP_COUNT,
+        config_path: str = os.getenv("LOG_CONFIG_FILE", "config/logging_levels.json")
+    ):
+        self.log_dir = log_dir
+        self.log_file = log_file
+        self.max_bytes = max_bytes
+        self.backup_count = backup_count
+        self.module_levels = _load_module_levels(config_path)
+        os.makedirs(self.log_dir, exist_ok=True)
 
-console_handler = logging.StreamHandler()
-console_handler.setFormatter(
-    _get_colored_formatter() if COLORLOG_AVAILABLE else _get_plain_formatter()
-)
-logger.addHandler(console_handler)
+    def get_logger(self, name: str, default_level: str = "INFO") -> logging.Logger:
+        """
+        Returns a configured logger. Removes only handlers it created previously.
+        """
+        logger = logging.getLogger(name)
 
-file_handler = RotatingFileHandler(
-    os.path.join(DEFAULT_LOG_DIR, DEFAULT_LOG_FILE),
-    maxBytes=MAX_BYTES,
-    backupCount=BACKUP_COUNT
-)
-file_handler.setFormatter(_get_plain_formatter())
-logger.addHandler(file_handler)
+        # Determine level: override per module-prefix if set
+        module_base = name.split(".")[0]
+        level_name = self.module_levels.get(module_base, default_level).upper()
 
-return logger
+        # Validate level name and get numeric value
+        numeric_level = logging.getLevelName(level_name)
+        if not isinstance(numeric_level, int):
+            print(f"[LOGGING] Invalid log level '{level_name}' for '{name}', defaulting to INFO.")
+            numeric_level = logging.INFO
 
-def _get_plain_formatter() -> logging.Formatter: return logging.Formatter( "[%(asctime)s] [%(levelname)s] [%(name)s] :: %(message)s", "%Y-%m-%d %H:%M:%S" )
+        logger.setLevel(numeric_level)
 
-def _get_colored_formatter() -> ColoredFormatter: return ColoredFormatter( fmt="%(log_color)s[%(asctime)s] [%(levelname)s] [%(name)s] :: %(message)s", datefmt="%Y-%m-%d %H:%M:%S", log_colors={ "DEBUG": "cyan", "INFO": "green", "WARNING": "yellow", "ERROR": "red", "CRITICAL": "bold_red" } )
+        # Remove existing StreamHandler or RotatingFileHandler to avoid duplicates
+        for h in list(logger.handlers):
+            if isinstance(h, (logging.StreamHandler, RotatingFileHandler)):
+                logger.removeHandler(h)
 
-if name == "main": os.environ["LOG_CONFIG_FILE"] = "config/logging_levels.json" setup_logger("core.analyzer").debug("Core module debug") setup_logger("api.gateway").info("API module info") setup_logger("engine.detector").warning("Engine warning") setup_logger("telemetry.receiver").error("Telemetry error")
+        # Console handler
+        ch = logging.StreamHandler()
+        ch.setFormatter(_get_colored_formatter() if COLORLOG_AVAILABLE else _get_plain_formatter())
+        logger.addHandler(ch)
 
+        # File handler (rotating)
+        fh = RotatingFileHandler(
+            os.path.join(self.log_dir, self.log_file),
+            maxBytes=self.max_bytes,
+            backupCount=self.backup_count
+        )
+        fh.setFormatter(_get_plain_formatter())
+        logger.addHandler(fh)
+
+        return logger
+
+
+# Singleton factory for module-level usage
+_default_factory = LoggerFactory()
+
+
+def setup_logger(name: str = "sentenialx", default_level: str = "INFO") -> logging.Logger:
+    return _default_factory.get_logger(name, default_level)
+
+
+if __name__ == "__main__":
+    # Example usage
+    os.environ["LOG_CONFIG_FILE"] = "config/logging_levels.json"
+    setup_logger("core.analyzer").debug("Core module debug")
+    setup_logger("api.gateway").info("API module info")
+    setup_logger("engine.detector").warning("Engine warning")
+    setup_logger("telemetry.receiver").error("Telemetry error")
