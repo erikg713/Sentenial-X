@@ -1,12 +1,14 @@
 import sys
 from PySide6.QtWidgets import QApplication, QMainWindow, QTabWidget, QWidget, QVBoxLayout
-
 from gui.dashboard.widgets.threat_table import ThreatTable  # Your existing widget imports
 from gui.dashboard.widgets.telemetry_viewer import TelemetryViewer
 from gui.dashboard.widgets.simulation_controls import SimulationControls
 from gui.dashboard.widgets.report_card import ReportCard
 from gui.dashboard.widgets.attack_graph import AttackGraph
 from gui.dashboard.widgets.exploit_module import ExploitModuleWidget
+from gui.dashboard.widgets.exploit_module import ExploitModuleTab
+# ...
+self.tabs.addTab(ExploitModuleTab(), "Exploits")
 
 # Sample threats data
 SAMPLE_THREATS = [
