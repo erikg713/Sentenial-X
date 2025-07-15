@@ -1,1 +1,62 @@
-app.py
+"""
+Sentenial X :: App Entry Point
+
+This script launches the Cortex-based analysis engine from the command line.
+Supports loading telemetry from a JSON file and analyzing it with full threat modeling.
+
+Usage:
+    python app.py --telemetry path/to/telemetry.json
+"""
+
+import argparse
+import json
+from datetime import datetime
+
+from core.cortex.cortex_manager import CortexManager
+from utils.logger import logger
+
+
+def load_telemetry(path: str):
+    """Load telemetry data from a JSON file."""
+    try:
+        with open(path, "r") as f:
+            data = json.load(f)
+
+        for entry in data:
+            if isinstance(entry.get("timestamp"), str):
+                entry["timestamp"] = datetime.fromisoformat(entry["timestamp"])
+        return data
+    except Exception as e:
+        logger.error(f"Failed to load telemetry from {path}: {e}")
+        return []
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Sentenial X Cortex CLI")
+    parser.add_argument("--telemetry", type=str, help="Path to telemetry JSON file")
+    parser.add_argument("--session", type=str, default="manual-session", help="Session ID")
+    args = parser.parse_args()
+
+    if not args.telemetry:
+        logger.error("Telemetry file path required. Use --telemetry path/to/file.json")
+        return
+
+    telemetry = load_telemetry(args.telemetry)
+    if not telemetry:
+        logger.error("No telemetry loaded. Aborting.")
+        return
+
+    cortex = CortexManager()
+    result = cortex.analyze(session_id=args.session, telemetry_stream=telemetry)
+
+    print("\n=== Sentenial X Threat Analysis ===")
+    print(f"Session: {result['session_id']}")
+    print(f"Semantic Intents: {result['semantic_intents']}")
+    print(f"Threat Stories: {len(result['threat_stories'])}")
+    print(f"Zero-Day Hits: {len(result['zero_day_hits'])}")
+    print(f"Anomalies Detected: {len(result['anomalies'])}")
+    print("===================================")
+
+
+if __name__ == "__main__":
+    main()
