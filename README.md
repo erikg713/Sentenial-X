@@ -191,6 +191,9 @@ source venv/Scripts/activate ## WINDOWS ##
 
 # Install dependencies
 pip install -r requirements.txt
+sudo systemctl daemon-reexec
+sudo systemctl enable sentinel-threat-monitor
+sudo systemctl start sentinel-threat-monitor
 ```
 ---
 ### Basic Usage
