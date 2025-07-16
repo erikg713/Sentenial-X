@@ -1,0 +1,13 @@
+sentinel-threat-monitor.service
+[Unit]
+Description=Sentenial-X Threat Monitor
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/python3 /opt/sentenial-x/threat_monitor.py
+WorkingDirectory=/opt/sentenial-x
+Restart=always
+User=root
+
+[Install]
+WantedBy=multi-user.target
