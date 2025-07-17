@@ -13,6 +13,32 @@ from .monitor import SandboxMonitor  # Optional module for file access telemetry
 from apps.ransomeware_emulator.encryption import encrypt_file, decrypt_file
 from sentenialx.ai_core.logger import log_threat_event  # <<< add this
 
+# apps/ransomeware_emulator/sandbox.py
+
+from apps.ransomeware_emulator.encryption import encrypt_file, decrypt_file
+from sentenialx.ai_core.logger import log_threat_event  # <<< add this
+
+def main():
+    test_file = "test.txt"
+    enc_file = "test.enc"
+    password = "beastmodepassword"
+
+    encrypt_file(test_file, enc_file, password)
+
+    # 🔥 Log encryption as a threat
+    log_threat_event(
+        threat_type="ransomware_activity",
+        source="sandbox",
+        payload=f"Encrypted {test_file} -> {enc_file}",
+        confidence=0.98
+    )
+
+    decrypt_file(enc_file, "test_decrypted.txt", password)
+
+if __name__ == "__main__":
+    main()
+
+
 def main():
     test_file = "test.txt"
     enc_file = "test.enc"
