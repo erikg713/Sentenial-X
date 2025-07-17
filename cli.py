@@ -33,6 +33,22 @@ def main():
     )
     subparsers = parser.add_subparsers(dest="command")
 
+# 🔁 watch live threats
+    subparsers.add_parser("watch", help="Stream live threats from log DB")
+
+    # 📄 scan a text file line-by-line
+    file_parser = subparsers.add_parser("scanfile", help="Scan lines from a file")
+    file_parser.add_argument("file_path", type=str, help="Path to file")
+
+    # 💣 simulate payload
+    sim_parser = subparsers.add_parser("simulate", help="Run a ransomware test payload")
+
+    # 🔐 defend mode
+    subparsers.add_parser("defend", help="Auto-monitor stdin for threats (stealth mode)")
+
+    # ⛔ shutdown daemon
+    subparsers.add_parser("shutdown", help="Trigger shutdown across agents")
+
     # 🔍 scan
     scan_parser = subparsers.add_parser("scan", help="Scan a string for threats")
     scan_parser.add_argument("text", type=str, help="Text to analyze")
