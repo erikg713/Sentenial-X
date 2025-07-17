@@ -47,3 +47,13 @@ def train_model_with_feedback(feedback_path: Path):
 
     except Exception as e:
         logger.exception("An error occurred while training the model: %s", e)
+
+if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Retrain model with feedback data.")
+    parser.add_argument("feedback_file", type=str, help="Path to the feedback JSON file.")
+    args = parser.parse_args()
+
+    feedback_path = Path(args.feedback_file)
+    train_model_with_feedback(feedback_path)
