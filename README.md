@@ -461,3 +461,10 @@ python core/engine/fine_tuner_adapter.py --autotune
 * Injects adversarial samples into fine-tuning queue
 
 ---
+```bash
+python cli.py defend       # Turn your terminal into a live threat shield
+python cli.py scanfile secrets.txt
+python cli.py simulate     # Run sandbox encryption payload
+python cli.py watch        # Stream logs from DB in real time
+python cli.py shutdown     # Nuke the bot net (soft)
+---
