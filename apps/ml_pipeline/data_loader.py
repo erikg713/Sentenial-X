@@ -2,7 +2,22 @@ import json
 import logging
 from pathlib import Path
 from typing import List, Tuple
+import json
+from pathlib import Path
+from typing import List, Tuple
 
+def load_feedback(feedback_path: Path) -> Tuple[List[str], List[str]]:
+    """
+    Read a JSON file of feedback entries and return parallel lists
+    of texts and labels.
+    """
+    content = Path(feedback_path).read_text(encoding="utf-8")
+    data = json.loads(content)
+
+    texts = [entry["text"] for entry in data]
+    labels = [entry["label"] for entry in data]
+
+    return texts, labels
 logger = logging.getLogger(__name__)
 
 def load_feedback(feedback_path: Path) -> Tuple[List[str], List[str]]:
