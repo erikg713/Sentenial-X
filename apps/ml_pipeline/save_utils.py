@@ -1,8 +1,15 @@
+import joblib
+from pathlib import Path
+import logging
+
+logger = logging.getLogger(__name__)
+
 def save_model(model, vectorizer, save_path: Path, metadata: dict):
-    data = {
+    save_path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
         "model": model,
         "vectorizer": vectorizer,
         "metadata": metadata
     }
-    joblib.dump(data, save_path)
-
+    joblib.dump(payload, save_path)
+    logger.info("Model and metadata saved to %s", save_path)
