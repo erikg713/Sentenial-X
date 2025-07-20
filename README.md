@@ -468,3 +468,15 @@ python cli.py simulate     # Run sandbox encryption payload
 python cli.py watch        # Stream logs from DB in real time
 python cli.py shutdown     # Nuke the bot net (soft)
 ---
+
+### Screenshots ###
+┌────────────────────────────┐
+│  🛰️ LIVE THREAT FEED       │
+├────────────────────────────┤
+│  2025-07-17T15:03Z         │
+│  ai_prompt_threat | cli    │
+│  🔥 0.93                   │
+│  "drop all users; --"      │
+│                            │
+│  ... more threats ...      │
+└────────────────────────────┘
