@@ -63,3 +63,40 @@ class ReportGenerator:
                 f.write(json.dumps(entry) + "\n")
         logger.info(f"[✓] Telemetry stream saved: {filename}")
         return full_path
+
+if __name__ == "__main__":
+    rg = ReportGenerator()
+
+    # Simulated threat report
+    rg.generate_threat_report({
+        "threat_level": "HIGH",
+        "source": "process_inspector",
+        "details": {
+            "pid": 1337,
+            "anomaly_score": 0.92,
+            "signature": "C2_Backdoor_ABC"
+        }
+    })
+
+    # Simulated exploit log
+    rg.generate_exploit_log("ms17_010_eternalblue", "[*] Exploit successful. Shell opened.")
+
+    # Ransomware emulation result
+    rg.generate_ransomware_emulation({
+        "files_encrypted": 157,
+        "ransom_note_dropped": True,
+        "payment_address": "pi_network:sentenialx"
+    })
+
+    # Sandbox snapshot
+    rg.generate_sandbox_snapshot({
+        "processes": ["svchost.exe", "explorer.exe"],
+        "open_ports": [80, 443],
+        "registry": {"HKLM\\Software\\Evil": "Present"}
+    })
+
+    # Streaming telemetry
+    rg.generate_telemetry_stream([
+        {"time": "2025-07-16T01:00:00Z", "cpu": 38, "mem": 63},
+        {"time": "2025-07-16T01:01:00Z", "cpu": 41, "mem": 65},
+    ])
