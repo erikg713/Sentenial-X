@@ -6,6 +6,17 @@ from engine.process_inspector import ProcessInspector
 from engine.network_watcher import NetworkWatcher
 from engine.alert_dispatcher import AlertDispatcher
 from engine.incident_logger import IncidentLogger
+from sentenial_core.reporting.report_generator import ReportGenerator
+
+reporter = ReportGenerator()
+
+# Example usage inside a detection engine
+reporter.generate_threat_report({
+    "source": "network_watcher",
+    "severity": "CRITICAL",
+    "ioc": "Suspicious DNS beaconing to c2.darkwebhost.onion",
+    "timestamp": "2025-07-16T02:45:01Z"
+})
 
 class ThreatMonitor:
     def __init__(self):
