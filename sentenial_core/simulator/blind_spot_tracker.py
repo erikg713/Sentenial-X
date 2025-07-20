@@ -1,94 +1,88 @@
 import time
+import psutil
+import threading
 import logging
 from datetime import datetime
-from typing import Dict, List
+from typing import Dict, Any
 
 logger = logging.getLogger("BlindSpotTracker")
-logging.basicConfig(level=logging.INFO)
-
+logger.setLevel(logging.INFO)
 
 class BlindSpotTracker:
-    """
-    Simulates and detects blind spots in the security perimeter.
-    Useful for red-team simulations and threat coverage audits.
-    """
-
     def __init__(self):
-        self.blind_spots = self._load_known_blind_spots()
-        logger.info("BlindSpotTracker initialized with coverage audit map.")
+        self.running = False
+        self.anomalies: list[Dict[str, Any]] = []
 
-    def _load_known_blind_spots(self) -> List[Dict]:
-        """
-        Load predefined blind spots. This could be dynamically loaded
-        from a config, API, or discovery engine in production.
-        """
-        return [
-            {
-                "zone": "DMZ-NAT-04",
-                "type": "network_segment",
-                "risk": "HIGH",
-                "description": "Unmonitored outbound DNS from legacy devices."
-            },
-            {
-                "zone": "HR-Laptop-Group",
-                "type": "endpoint",
-                "risk": "MEDIUM",
-                "description": "No EDR agent installed on HR laptop pool."
-            },
-            {
-                "zone": "Cloud-S3-Storage",
-                "type": "data_store",
-                "risk": "CRITICAL",
-                "description": "Public bucket without access logging enabled."
-            }
-        ]
+    def _scan(self):
+        logger.info("Blind Spot Tracker scan started.")
+        while self.running:
+            try:
+                self.detect_unusual_processes()
+                self.detect_unlinked_binaries()
+                self.detect_high_cpu_invisible_processes()
+                time.sleep(10)  # periodic scan
+            except Exception as e:
+                logger.error(f"[BlindSpotTracker] Error during scan: {e}")
 
-    def simulate_exploitation(self, zone: str) -> Dict:
-        """
-        Simulate attacker activity exploiting a specific blind spot.
-        """
-        blind_spot = next((b for b in self.blind_spots if b["zone"] == zone), None)
+    def detect_unusual_processes(self):
+        for proc in psutil.process_iter(attrs=["pid", "name", "exe", "username"]):
+            try:
+                if proc.info['exe'] is None or proc.info['exe'] == "":
+                    anomaly = {
+                        "type": "Unlinked Executable",
+                        "pid": proc.info["pid"],
+                        "process": proc.info["name"],
+                        "user": proc.info["username"],
+                        "timestamp": datetime.utcnow().isoformat()
+                    }
+                    self.anomalies.append(anomaly)
+                    logger.warning(f"⚠️ Blind spot: {anomaly}")
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                continue
 
-        if not blind_spot:
-            logger.warning(f"Zone '{zone}' not found in blind spot list.")
-            return {"status": "error", "message": "Unknown zone."}
+    def detect_unlinked_binaries(self):
+        for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+            try:
+                if not proc.info['cmdline']:
+                    anomaly = {
+                        "type": "Missing Command Line",
+                        "pid": proc.info['pid'],
+                        "process": proc.info['name'],
+                        "timestamp": datetime.utcnow().isoformat()
+                    }
+                    self.anomalies.append(anomaly)
+                    logger.warning(f"⚠️ Blind spot: {anomaly}")
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                continue
 
-        simulation = {
-            "zone": zone,
-            "risk": blind_spot["risk"],
-            "exploitation_vector": self._get_mock_exploit(blind_spot["type"]),
-            "timestamp": datetime.utcnow().isoformat() + "Z"
-        }
+    def detect_high_cpu_invisible_processes(self, cpu_threshold: float = 20.0):
+        for proc in psutil.process_iter(['pid', 'name', 'cpu_percent']):
+            try:
+                cpu_usage = proc.cpu_percent(interval=0.1)
+                if cpu_usage > cpu_threshold and not proc.name():
+                    anomaly = {
+                        "type": "High CPU Ghost Process",
+                        "pid": proc.pid,
+                        "cpu": cpu_usage,
+                        "timestamp": datetime.utcnow().isoformat()
+                    }
+                    self.anomalies.append(anomaly)
+                    logger.warning(f"⚠️ Blind spot: {anomaly}")
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                continue
 
-        logger.info(f"Simulated exploitation in zone: {zone}")
-        return simulation
+    def start(self):
+        if not self.running:
+            self.running = True
+            self.thread = threading.Thread(target=self._scan, daemon=True)
+            self.thread.start()
+            logger.info("Blind Spot Tracker started.")
 
-    def audit_all_zones(self) -> List[Dict]:
-        """
-        Return the full map of known blind spots.
-        """
-        logger.info("Performed full blind spot audit.")
-        return self.blind_spots
+    def stop(self):
+        self.running = False
+        if hasattr(self, "thread"):
+            self.thread.join()
+            logger.info("Blind Spot Tracker stopped.")
 
-    def _get_mock_exploit(self, spot_type: str) -> str:
-        if spot_type == "network_segment":
-            return "Covert DNS tunneling to C2 server"
-        elif spot_type == "endpoint":
-            return "Fileless malware execution via macro"
-        elif spot_type == "data_store":
-            return "Credential leakage from public S3 object"
-        else:
-            return "Unknown vector"
-
-
-if __name__ == "__main__":
-    tracker = BlindSpotTracker()
-    audit = tracker.audit_all_zones()
-
-    print("\n--- Current Blind Spots ---")
-    for spot in audit:
-        print(f"[{spot['risk']}] {spot['zone']} → {spot['description']}")
-
-    print("\n--- Simulating Exploitation ---")
-    result = tracker.simulate_exploitation("Cloud-S3-Storage")
-    print(result)
+    def get_anomalies(self) -> list:
+        return self.anomalies
