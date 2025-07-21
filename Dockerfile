@@ -1,16 +1,14 @@
-# Build the image
-docker build -t sentenialx .
-
-# Run in passive monitoring mode
-docker run --rm -p 8000:8000 --env-file .env sentenialxFROM python:3.10-slim
+FROM python:3.11-slim
 
 WORKDIR /app
-COPY . .
-RUN pip install -r requirements.txt
 
-CMD ["python", "sentinel_main.py", "--mode=passive"]
-# Build the image
-docker build -t sentenialx .
+COPY . /app
+COPY .env /app/.env
 
-# Run in passive monitoring mode
-docker run --rm -p 8000:8000 --env-file .env sentenialx
+RUN pip install --no-cache-dir -r requirements.txt
+
+ENV FLASK_APP=sentinel_core.py
+ENV FLASK_ENV=development
+ENV FLASK_DEBUG=1
+
+CMD ["flask", "run", "--host=0.0.0.0", "--port=5000"]
