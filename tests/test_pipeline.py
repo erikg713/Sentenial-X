@@ -4,7 +4,8 @@ import pytest
 from pathlib import Path
 from ml_pipeline.data_loader import load_feedback
 from ml_pipeline.model_trainer import train_model
-
+# tests/test_pipeline.py
+from ..ml_pipeline.data_loader import load_feedback
 @pytest.fixture
 def tmp_feedback_file(tmp_path):
     file = tmp_path / "feedback.json"
