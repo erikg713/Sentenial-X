@@ -5,7 +5,22 @@ import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QPushButton, QTextEdit
 
+class ThreatCollectorUI(QWidget):
+    def __init__(self):
+        super().__init__()
+        layout = QVBoxLayout()
+        self.output = QTextEdit()
+        self.button = QPushButton("Run Threat Collection")
+        self.button.clicked.connect(self.run_collector)
+        layout.addWidget(self.button)
+        layout.addWidget(self.output)
+        self.setLayout(layout)
+
+    def run_collector(self):
+        self.output.append("Collecting threats...")
+        # run your actual code here (e.g., self.output.append(str(run_threat_collection()))
 # Dummy implementations for demo; replace with your actual imports
 def collect_sample(file_path, suspicious_strings=None):
     # Simulate metadata extraction & suspicious strings detection
