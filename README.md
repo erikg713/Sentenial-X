@@ -194,6 +194,7 @@ pip install -r requirements.txt
 sudo systemctl daemon-reexec
 sudo systemctl enable sentinel-threat-monitor
 sudo systemctl start sentinel-threat-monitor
+pyinstaller --name CentennialX --onefile --windowed gui/hub.py
 ```
 ---
 ### Basic Usage
