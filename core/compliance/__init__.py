@@ -1,1 +1,1 @@
-d
+from .legal_ontology_parser import parse_policy
