@@ -28,7 +28,8 @@ protobuf>=5.26.1
 # GUI / Web (Optional)
 flask>=3.0.3
 jinja2>=3.1.4
-PyQt5>=5.15.9  # or PySide6>=6.7.0
+PyQt5>=5.15.9
+PySide6>=6.7.0
 
 # Testing / CI
 pytest>=8.2.2
