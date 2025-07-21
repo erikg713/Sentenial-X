@@ -1,8 +1,10 @@
-name: Build & Package CentennialX
+name: Build, Test & Release CentennialX
 
 on:
   push:
-    branches: [ main ]
+    tags:
+      - "v*.*.*"   # Only triggers on version tags like v1.0.0
+  workflow_dispatch:
   pull_request:
 
 jobs:
@@ -10,11 +12,10 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-
     runs-on: ${{ matrix.os }}
 
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v3
 
       - name: Set up Python
@@ -34,8 +35,42 @@ jobs:
         run: |
           pyinstaller --onefile --windowed gui/hub.py
 
-      - name: Upload build artifact
+      - name: Upload build artifacts
         uses: actions/upload-artifact@v3
         with:
           name: CentennialX-${{ matrix.os }}
           path: dist/*
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: builds/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: "CentennialX ${{ github.ref_name }}"
+          tag_name: ${{ github.ref_name }}
+          body: |
+            🎉 New release of CentennialX!
+            - OS support: Windows, Linux, macOS
+            - Built from commit `${{ github.sha }}`
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload release binaries
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            builds/**/dist/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
