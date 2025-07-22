@@ -1,4 +1,4 @@
-# Sentenial X A.I.
+# Sentenial X 
 
 **The Ultimate Cyber Guardian — Built to Learn, Adapt, and Strike Back**  
 *"Crafted for resilience. Engineered for vengeance. Sentenial X is not just a defense — it's a digital sentinel with the mind of a warrior and the reflexes of a machine."*
