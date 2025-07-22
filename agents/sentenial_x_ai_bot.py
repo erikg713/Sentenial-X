@@ -1,9 +1,3 @@
-# Generate a basic agent: agents/sentenial_x_ai_bot.py
-# This will simulate agent check-in, report anomalies, and support command execution.
-
-from pathlib import Path
-
-agent_bot_code = '''
 import time
 import random
 import json
@@ -22,7 +16,7 @@ def send_heartbeat():
             "status": "online",
             "timestamp": datetime.utcnow().isoformat() + "Z"
         }
-        log.write(json.dumps(heartbeat) + "\\n")
+        log.write(json.dumps(heartbeat) + "\n")
         print(f"[HEARTBEAT] {heartbeat['timestamp']}")
 
 def listen_for_commands():
@@ -49,10 +43,3 @@ def run_agent():
 
 if __name__ == "__main__":
     run_agent()
-'''
-
-# Save to agents/sentenial_x_ai_bot.py
-agent_path = "/mnt/data/sentenial_x_ai_bot.py"
-Path(agent_path).write_text(agent_bot_code)
-
-agent_path
