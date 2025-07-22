@@ -13,12 +13,12 @@ Sentenial X A.I. is an advanced cyber defense platform engineered for modern thr
 
 ### Goals ###
 
-The main goals of Sentenial-X-A.I include:
+The main goals of Sentenial-X include:
 
-Automated security auditing
-Compliance testing (e.g. ISO27001, PCI-DSS, HIPAA)
-Vulnerability detection
-The software (also) assists with:
+1.Automated security auditing
+2.Compliance testing (e.g. ISO27001, PCI-DSS, HIPAA)
+3.Vulnerability detection
+4.The software (also) assists with:
 
 •Configuration and asset management
 •Software patch management
