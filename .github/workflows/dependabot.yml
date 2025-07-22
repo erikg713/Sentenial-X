@@ -1,15 +1,15 @@
 # .github/workflows/dependabot.yml
-version:2
-updates;
+version: 2
+updates:
   - package-ecosystem: "pip"
-    directory: "/"                       
+    directory: "/"                      
     schedule:
       interval: "weekly"
       day: "monday"
       time: "04:00"
     open-pull-requests-limit: 5
     allow:
-      - dependency-type: "all"           
+      - dependency-type: "all"
     labels:
       - "dependencies"
     commit-message:
@@ -17,7 +17,7 @@ updates;
     rebase-strategy: "auto"
 
   - package-ecosystem: "github-actions"
-    directory: "/"                       # Location of your workflow files
+    directory: "/"                      
     schedule:
       interval: "weekly"
       day: "monday"
