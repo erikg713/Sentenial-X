@@ -1,13 +1,32 @@
-sentinel-threat-monitor.service
 [Unit]
-Description=Sentenial-X Threat Monitor
+Description=Sentenial Threat Monitor AI Agent
 After=network.target
 
 [Service]
-ExecStart=/usr/bin/python3 /opt/sentenial-x/threat_monitor.py
-WorkingDirectory=/opt/sentenial-x
-Restart=always
-User=root
+Type=simple
+# Change to the system user you want this service to run as
+User=Beastmode7777
+Group=sentenial
+
+# Working directory where your agent code resides
+WorkingDirectory=/sentenial-x/sentenial_x_ai
+
+# Command to launch the asyncio-based agent
+ExecStart=/usr/bin/env python3 /sentenial-x/sentenial_x_ai/agent.py
+
+# Automatically restart on failure
+Restart=on-failure
+RestartSec=5s
+
+# Load environment variables (optional file)
+# Replace with your own .env if you have one
+sentenial-x/.env
+
+# Fallback env vars if not using a file
+Environment=DB_PATH=/user/lib/sentenial-x/agent.db
+Environment=AGENT_ID=sentenial-x-ai-bot
+Environment=NETWORK_PORT=8000
+Environment=PEERS=http://localhost:5001,http://localhost:5002
 
 [Install]
 WantedBy=multi-user.target
