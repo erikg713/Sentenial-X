@@ -326,38 +326,37 @@ Malicious bot activity, fingerprint evasion, LLM-based threat payloads
 
 
 
----
-
+-------------------------
 Next-Level Differentiator
-
-Unlike traditional WAFs, Sentenial X A.I. understands the structure, context, and meaning of traffic — not just its patterns.
-
-Feature	Sentenial X A.I.	ModSecurity	Cloudflare WAF
-
-Semantic HTTP Parsing	Yes	No	No
+-------------------------
+---
+Unlike traditional WAFs,Sentenial-X understands the structure,context and meaning of traffic!! Not just its patterns,but it adapts to its every move. evrytime it moves it learns it records it reacts!!!!
+--------_--------------
+### Sentenial X Features ###
+•ModSecurity	 
+•Cloudflare 
+•WAF
+----------------------
+Semantic HTTP Parsing	 Yes	 No 	No
 Zero-Day Detection	99.45%	~71%	~82%
 False Positive Rate	0.07%	2.3%	1.1%
 Self-Learning Model	Yes	No	Partial
 Offline & Real-Time Mode	Yes	Limited	Yes
 Open Plugin Support	Yes	No	No
-
-
-
+-------------------------
 ---
-
-
 Here is the proposed **Implementation** section for Sentenial X A.I., based on the current directory structure, Python-based stack, and MVP scope.
 
 ---
 
-## Implementation
+### Implementation ###
 
 This section outlines how to build, deploy, and operate the MVP version of Sentenial X A.I. The implementation is Python-first and supports both monolithic and modular execution via CLI.
 
 ---
-
-### 📁 Directory Structure
-
+------------------------------------------------
+### 📁 Sentenial_core Directory Structure ####
+-------------------_----------------------------
 ```bash
 sentenial_core/
 ├── cortex/                     # Semantic threat parsing
@@ -399,10 +398,11 @@ Environment variables include:
 * `AUTO_SHUTDOWN_ON_THREAT=true`
 
 ---
-
-### 🚀 Running the Core Engine
-
-Start the core semantic threat pipeline:
+-----------------------------------
+### 🚀 Running the Core Engine ###
+------------------------------------
+---
+#### Start the core semantic threat pipeline:
 
 ```bash
 python core/engine/semantics_analyzer.py
@@ -413,10 +413,13 @@ This entry point:
 * Parses traffic from `http_parser.py`
 * Applies classifiers
 * Triggers orchestration via `incident_reflex_manager.py`
-
 ---
 
-### 🛡️ Running in Monitor Mode (Passive Detection)
+--------------------------------------------------
+
+### 🛡️ Running in Monitor Mode (Passive Detection) ###
+--------------------------------------------------
+---
 
 ```bash
 python sentinel_main.py --mode=passive
@@ -437,40 +440,46 @@ python sentinel_main.py --mode=active
 * Writes forensic records to `logs/audit.log`.
 
 ---
-
-### 🧪 Simulate Threat Payloads
-
+-----------------------------------------------
+### 🧪 Simulate Threat Payloads ###
+---------------------------------------------_-
+---
 Use the built-in fuzzer and red team model:
 
 ```bash
 python core/simulator/synthetic_attack_fuzzer.py --mode=fuzz
 ```
 
-* Outputs synthetic threat vectors for stress testing.
+*** Outputs synthetic threat vectors for stress testing.
 
 ---
-
-### 🧠 Continuous Learning Loop (Optional)
-
-Enable model refresh via:
+----------------------------------------------------
+### 🧠 Continuous Learning Loop ###
+--------------------------420-----------------------
+---
+## Enable model refresh via:
 
 ```bash
 python core/engine/fine_tuner_adapter.py --autotune
 ```
+---
 
 * Monitors new embeddings from `malicious_embedding_analyzer.py`
 * Injects adversarial samples into fine-tuning queue
-
 ---
+
 ```bash
 python cli.py defend       # Turn your terminal into a live threat shield
 python cli.py scanfile secrets.txt
 python cli.py simulate     # Run sandbox encryption payload
 python cli.py watch        # Stream logs from DB in real time
 python cli.py shutdown     # Nuke the bot net (soft)
+
 ---
 
+----------------------------------------------------
 ### Screenshots ###
+
 ┌────────────────────────────┐
 │  🛰️ LIVE THREAT FEED       │
 ├────────────────────────────┤
@@ -481,3 +490,4 @@ python cli.py shutdown     # Nuke the bot net (soft)
 │                            │
 │  ... more threats ...      │
 └────────────────────────────┘
+----------------------------------------------------
