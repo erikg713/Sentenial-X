@@ -2,6 +2,12 @@ import os
 import json
 from executor import execute_command
 from memory import remember
+from ml_classifier import classify_command, train_model
+
+# After processing commands:
+train_model()
+label = classify_command(cmd)
+print(f"[ML] Command classified as: {label}")
 
 COMMAND_QUEUE = "commands/agent_commands.json"
 
