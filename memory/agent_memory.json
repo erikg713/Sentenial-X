@@ -1,5 +1,3 @@
-MEMORY_FILE = "memory/agent_memory.json"
-
 def remember(event):
     os.makedirs("memory", exist_ok=True)
     memory = []
