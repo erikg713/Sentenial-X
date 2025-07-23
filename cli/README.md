@@ -1,6 +1,3 @@
----
-
-```markdown
 # Sentenial-X AI Agent
 
 An adaptive, asyncio-powered AI agent that learns from its experience,  
