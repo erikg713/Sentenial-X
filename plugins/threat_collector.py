@@ -1,5 +1,3 @@
-# plugins/threat_collector.py
-
 from plugins.plugin_base import Plugin
 from typing import Any, Dict, List
 import json
