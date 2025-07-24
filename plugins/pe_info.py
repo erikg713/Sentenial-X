@@ -1,5 +1,3 @@
-# plugins/pe_info.py
-
 """
 pe_info.py
 
