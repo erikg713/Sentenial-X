@@ -234,6 +234,9 @@ logs/
 ```bash
 docker build -t sentenial-x .
 docker run --rm -p 8000:8000 sentenial-x
+----------------------
+## BUILD AND RUN ##
+----------------------
 docker build -t pentest-suite .
 docker run -p 5000:5000 pentest-suite
 ---
