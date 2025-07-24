@@ -171,6 +171,27 @@ class AppGui(QMainWindow):
     def on_worker_error(self, err: str):
         self.output_console.append(f"ERROR: {err}")
 
+@@ def on_plugin_selected(self):
+-            if typ == "select":
++            if typ == "select":
+                 # unchanged…
++            elif typ == "file":
++                btn = QPushButton("Browse…")
++                lbl = QLabel("No file selected")
++                h = QHBoxLayout()
++                h.addWidget(btn); h.addWidget(lbl)
++                self.dynamic_form.addLayout(h)
++
++                def pick():
++                    path, _ = QFileDialog.getOpenFileName(self, param["label"], 
++                                                         dialog.get("start", ""), 
++                                                         dialog.get("filter", "All Files (*)"))
++                    if path:
++                        lbl.setText(path)
++                btn.clicked.connect(pick)
++                self.inputs[param["name"]] = lambda: lbl.text()
+             elif typ == "int":
+                 # unchanged…
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
