@@ -1,0 +1,31 @@
+import argparse
+from plugin_registry import load_plugins, get_plugin_parameters, run_plugin
+
+def main():
+    load_plugins()
+
+    parser = argparse.ArgumentParser(description="Run a plugin from CLI")
+    parser.add_argument("plugin", help="Plugin name (e.g. ransomware_emulator)")
+
+    # Parse known args first
+    args, unknown = parser.parse_known_args()
+    plugin_name = args.plugin
+
+    parameters = get_plugin_parameters(plugin_name)
+
+    # Add plugin-specific parameters dynamically
+    for param in parameters:
+        name = f"--{param['name']}"
+        if param["type"] == "bool":
+            parser.add_argument(name, action="store_true" if param.get("default", False) else "store_false")
+        else:
+            parser.add_argument(name, type=int if param["type"] == "int" else str)
+
+    args = parser.parse_args()
+    plugin_args = {param['name']: getattr(args, param['name']) for param in parameters}
+
+    result = run_plugin(plugin_name, **plugin_args)
+    print("✅ Plugin Result:", result)
+
+if __name__ == "__main__":
+    main()
