@@ -18,3 +18,11 @@ def get_plugin_parameters(plugin_name):
 
 def run_plugin(plugin_name, **kwargs):
     return PLUGINS[plugin_name].run(**kwargs)
+if __name__ == "__main__":
+    load_plugins()
+
+    params = get_plugin_parameters("ransomware_emulator")
+    print("Parameters:", params)
+
+    result = run_plugin("ransomware_emulator", payload_name="test_payload", file_count=3, monitor=True)
+    print("Run Result:", result)
