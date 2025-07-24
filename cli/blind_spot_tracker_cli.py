@@ -1,5 +1,7 @@
 import argparse
-from sentenial_core.simulator.blind_spot_tracker import BlindSpotTracker
+from sentenial_core import cli
+import simulator
+import Blind_Spot_Tracker
 
 def run_cli():
     tracker = BlindSpotTracker()
