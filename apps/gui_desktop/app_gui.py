@@ -102,6 +102,74 @@ class AppGui(QMainWindow):
         self.output_console.setReadOnly(True)
         right_panel.addWidget(self.output_console)
 
+    --- a/apps/gui_desktop/app_gui.py
++++ b/apps/gui_desktop/app_gui.py
+@@ def __init__(self):
+-        left_panel.addWidget(QLabel("Rule Paths (YARA):"))
+-        self.rules_input = QLineEdit()
+-        left_panel.addWidget(self.rules_input)
++        # Placeholder for plugin‐specific inputs
++        self.dynamic_form = QVBoxLayout()
++        left_panel.addLayout(self.dynamic_form)
+@@ def on_plugin_selected(self):
+-        # existing rules/target placeholders...
++        # clear old form widgets
++        while self.dynamic_form.count():
++            item = self.dynamic_form.takeAt(0)
++            w = item.widget()
++            if w:
++                w.deleteLater()
++
++        plugin = self.manager.plugins[item.data(Qt.UserRole)]
++        self.inputs = {}
++        for param in getattr(plugin, "parameters", []):
++            lbl = QLabel(param["label"] + ":")
++            self.dynamic_form.addWidget(lbl)
++
++            typ = param["type"]
++            if typ == "file":
++                # file‐picker row
++                row = QHBoxLayout()
++                btn = QPushButton("Browse…")
++                chosen = QLabel("No file selected")
++                row.addWidget(btn); row.addWidget(chosen)
++                self.dynamic_form.addLayout(row)
++
++                def pick_file(p=param, lbl_widget=chosen):
++                    mode = p["dialog"].get("mode", "open")
++                    filt = p["dialog"].get("filter", "All Files (*)")
++                    if mode == "open":
++                        path, _ = QFileDialog.getOpenFileName(self, p["label"], "", filt)
++                    else:
++                        path = ""
++                    if path:
++                        lbl_widget.setText(path)
++                btn.clicked.connect(pick_file)
++                # store a lambda to fetch the text
++                self.inputs[param["name"]] = lambda lbl=chosen: lbl.text()
++
++            elif typ == "bool":
++                cb = QCheckBox(param["label"])
++                cb.setChecked(param.get("default", False))
++                self.dynamic_form.addWidget(cb)
++                self.inputs[param["name"]] = cb
++
++            # add more types here as needed…
+ 
+@@ def run_plugin(self):
+-        # gather arguments (rules, target…)…
++        # gather kwargs from dynamic inputs
++        for name, widget in getattr(self, "inputs", {}).items():
++            if callable(widget):
++                kwargs[name] = widget()
++            elif isinstance(widget, QCheckBox):
++                kwargs[name] = widget.isChecked()
++            else:
++                kwargs[name] = widget.text() if hasattr(widget, "text") else widget.value()
+ 
+         self.output_console.clear()
+         self.output_console.append(f">>> Running plugin '{name}'…\n")
+
     def on_plugin_selected(self):
         """
         Auto-fill placeholders or hints based on plugin.
