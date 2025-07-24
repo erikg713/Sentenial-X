@@ -6,15 +6,26 @@ and viewing live output from the Sentenial X A.I. engine.
 
 import sys
 import threading
-from typing import List
+from typing import Any, Dict
 
 from PySide6.QtCore import Qt, Signal, QObject
 from PySide6.QtWidgets import (
-    QApplication, QMainWindow, QWidget,
-    QVBoxLayout, QHBoxLayout, QListWidget,
-    QListWidgetItem, QLabel, QLineEdit,
-    QTextEdit, QPushButton, QFileDialog,
-    QCheckBox, QMessageBox
+    QApplication,
+    QMainWindow,
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QListWidget,
+    QListWidgetItem,
+    QLabel,
+    QLineEdit,
+    QTextEdit,
+    QPushButton,
+    QFileDialog,
+    QCheckBox,
+    QComboBox,
+    QSpinBox,
+    QMessageBox
 )
 
 from plugin_manager import PluginManager
@@ -22,13 +33,12 @@ from plugin_manager import PluginManager
 
 class Worker(QObject):
     """
-    Worker to run plugin invocation in a background thread
-    and emit results back to the GUI.
+    Runs plugin invocation in a background thread and emits results to GUI.
     """
     finished = Signal(str)
     error = Signal(str)
 
-    def __init__(self, mgr: PluginManager, name: str, kwargs: dict):
+    def __init__(self, mgr: PluginManager, name: str, kwargs: Dict[str, Any]):
         super().__init__()
         self.mgr = mgr
         self.name = name
@@ -37,9 +47,8 @@ class Worker(QObject):
     def run(self):
         try:
             result = self.mgr.run(self.name, **self.kwargs)
-            # ensure we have a string
-            output = result if isinstance(result, str) else str(result)
-            self.finished.emit(output)
+            out = result if isinstance(result, str) else str(result)
+            self.finished.emit(out)
         except Exception as e:
             self.error.emit(str(e))
 
@@ -50,15 +59,15 @@ class AppGui(QMainWindow):
         self.setWindowTitle("Sentenial X A.I. Defender")
         self.resize(900, 600)
 
-        # Plugin manager
         self.manager = PluginManager()
+        self.inputs: Dict[str, Any] = {}
 
-        # Main layout
+        # Layouts
         central = QWidget()
         self.setCentralWidget(central)
         main_layout = QHBoxLayout(central)
 
-        # Left panel: plugins & configuration
+        # Left panel: plugin list + dynamic form
         left_panel = QVBoxLayout()
         main_layout.addLayout(left_panel, 1)
 
@@ -71,27 +80,16 @@ class AppGui(QMainWindow):
         self.plugin_list.currentItemChanged.connect(self.on_plugin_selected)
         left_panel.addWidget(self.plugin_list)
 
-        left_panel.addWidget(QLabel("Rule Paths (YARA):"))
-        self.rules_input = QLineEdit()
-        left_panel.addWidget(self.rules_input)
-        btn_browse_rules = QPushButton("Browse…")
-        btn_browse_rules.clicked.connect(self.browse_rules)
-        left_panel.addWidget(btn_browse_rules)
+        # Dynamic form area
+        self.dynamic_form = QVBoxLayout()
+        left_panel.addLayout(self.dynamic_form)
 
-        left_panel.addWidget(QLabel("Target File/Directory:"))
-        self.target_input = QLineEdit()
-        left_panel.addWidget(self.target_input)
-        btn_browse_target = QPushButton("Browse…")
-        btn_browse_target.clicked.connect(self.browse_target)
-        left_panel.addWidget(btn_browse_target)
-
+        # JSON toggle and run
         self.json_checkbox = QCheckBox("Output JSON")
         left_panel.addWidget(self.json_checkbox)
-
         btn_run = QPushButton("Run Plugin")
         btn_run.clicked.connect(self.run_plugin)
         left_panel.addWidget(btn_run)
-
         left_panel.addStretch()
 
         # Right panel: output console
@@ -102,136 +100,107 @@ class AppGui(QMainWindow):
         self.output_console.setReadOnly(True)
         right_panel.addWidget(self.output_console)
 
-    --- a/apps/gui_desktop/app_gui.py
-+++ b/apps/gui_desktop/app_gui.py
-@@ def __init__(self):
--        left_panel.addWidget(QLabel("Rule Paths (YARA):"))
--        self.rules_input = QLineEdit()
--        left_panel.addWidget(self.rules_input)
-+        # Placeholder for plugin‐specific inputs
-+        self.dynamic_form = QVBoxLayout()
-+        left_panel.addLayout(self.dynamic_form)
-@@ def on_plugin_selected(self):
--        # existing rules/target placeholders...
-+        # clear old form widgets
-+        while self.dynamic_form.count():
-+            item = self.dynamic_form.takeAt(0)
-+            w = item.widget()
-+            if w:
-+                w.deleteLater()
-+
-+        plugin = self.manager.plugins[item.data(Qt.UserRole)]
-+        self.inputs = {}
-+        for param in getattr(plugin, "parameters", []):
-+            lbl = QLabel(param["label"] + ":")
-+            self.dynamic_form.addWidget(lbl)
-+
-+            typ = param["type"]
-+            if typ == "file":
-+                # file‐picker row
-+                row = QHBoxLayout()
-+                btn = QPushButton("Browse…")
-+                chosen = QLabel("No file selected")
-+                row.addWidget(btn); row.addWidget(chosen)
-+                self.dynamic_form.addLayout(row)
-+
-+                def pick_file(p=param, lbl_widget=chosen):
-+                    mode = p["dialog"].get("mode", "open")
-+                    filt = p["dialog"].get("filter", "All Files (*)")
-+                    if mode == "open":
-+                        path, _ = QFileDialog.getOpenFileName(self, p["label"], "", filt)
-+                    else:
-+                        path = ""
-+                    if path:
-+                        lbl_widget.setText(path)
-+                btn.clicked.connect(pick_file)
-+                # store a lambda to fetch the text
-+                self.inputs[param["name"]] = lambda lbl=chosen: lbl.text()
-+
-+            elif typ == "bool":
-+                cb = QCheckBox(param["label"])
-+                cb.setChecked(param.get("default", False))
-+                self.dynamic_form.addWidget(cb)
-+                self.inputs[param["name"]] = cb
-+
-+            # add more types here as needed…
- 
-@@ def run_plugin(self):
--        # gather arguments (rules, target…)…
-+        # gather kwargs from dynamic inputs
-+        for name, widget in getattr(self, "inputs", {}).items():
-+            if callable(widget):
-+                kwargs[name] = widget()
-+            elif isinstance(widget, QCheckBox):
-+                kwargs[name] = widget.isChecked()
-+            else:
-+                kwargs[name] = widget.text() if hasattr(widget, "text") else widget.value()
- 
-         self.output_console.clear()
-         self.output_console.append(f">>> Running plugin '{name}'…\n")
-
     def on_plugin_selected(self):
-        """
-        Auto-fill placeholders or hints based on plugin.
-        """
+        """Rebuild inputs based on selected plugin.parameters."""
+        # Clear old widgets
+        while self.dynamic_form.count():
+            item = self.dynamic_form.takeAt(0)
+            w = item.widget()
+            if w:
+                w.deleteLater()
+        self.inputs.clear()
+
         item = self.plugin_list.currentItem()
         if not item:
             return
         name = item.data(Qt.UserRole)
-        if name == "yara_scan":
-            self.rules_input.setPlaceholderText("/path/to/rules1.yar;/extra/rules/")
-            self.target_input.setPlaceholderText("/path/to/file_or_directory")
-        else:
-            # other plugins might not use rules
-            self.rules_input.setPlaceholderText("(not used)")
-            self.target_input.setPlaceholderText("/path/to/input")
+        plugin = self.manager.plugins[name]
 
-    def browse_rules(self):
-        path, _ = QFileDialog.getOpenFileName(self, "Select YARA file or directory")
-        if path:
-            self.rules_input.setText(path)
+        for param in getattr(plugin, "parameters", []):
+            lbl = QLabel(param["label"] + ":")
+            self.dynamic_form.addWidget(lbl)
+            ptype = param["type"]
 
-    def browse_target(self):
-        path = QFileDialog.getExistingDirectory(self, "Select Directory")
-        if not path:
-            # try file
-            file_path, _ = QFileDialog.getOpenFileName(self, "Select File")
-            path = file_path
-        if path:
-            self.target_input.setText(path)
+            if ptype == "select":
+                combo = QComboBox()
+                for choice in param.get("choices", []):
+                    combo.addItem(choice)
+                if "default" in param:
+                    combo.setCurrentText(param["default"])
+                self.dynamic_form.addWidget(combo)
+                self.inputs[param["name"]] = combo
+
+            elif ptype == "int":
+                spinner = QSpinBox()
+                spinner.setRange(param.get("min", 0), param.get("max", 9999))
+                spinner.setValue(param.get("default", 0))
+                self.dynamic_form.addWidget(spinner)
+                self.inputs[param["name"]] = spinner
+
+            elif ptype == "bool":
+                chk = QCheckBox(param["label"])
+                chk.setChecked(param.get("default", False))
+                self.dynamic_form.addWidget(chk)
+                self.inputs[param["name"]] = chk
+
+            elif ptype == "file":
+                row = QHBoxLayout()
+                btn = QPushButton("Browse…")
+                chosen = QLabel("No file selected")
+                row.addWidget(btn)
+                row.addWidget(chosen)
+                self.dynamic_form.addLayout(row)
+
+                def pick_file(p=param, lbl=chosen):
+                    filt = p["dialog"].get("filter", "All Files (*)")
+                    path, _ = QFileDialog.getOpenFileName(self, p["label"], "", filt)
+                    if path:
+                        lbl.setText(path)
+
+                btn.clicked.connect(pick_file)
+                self.inputs[param["name"]] = lambda lbl=chosen: lbl.text()
+
+            else:
+                # fallback text
+                edit = QLineEdit()
+                edit.setText(str(param.get("default", "")))
+                self.dynamic_form.addWidget(edit)
+                self.inputs[param["name"]] = edit
 
     def run_plugin(self):
         item = self.plugin_list.currentItem()
         if not item:
-            QMessageBox.warning(self, "No Plugin Selected", "Please select a plugin first.")
+            QMessageBox.warning(self, "No Plugin Selected", "Select a plugin first.")
             return
 
         name = item.data(Qt.UserRole)
-        kwargs = {}
+        kwargs: Dict[str, Any] = {}
 
-        # gather arguments
-        rules = self.rules_input.text().strip()
-        if rules:
-            # support semicolon separated
-            kwargs["rule_paths"] = rules.split(";")
-
-        target = self.target_input.text().strip()
-        if target:
-            kwargs["target"] = target
+        # Gather inputs
+        for key, widget in self.inputs.items():
+            if callable(widget):
+                kwargs[key] = widget()
+            elif isinstance(widget, QComboBox):
+                kwargs[key] = widget.currentText()
+            elif isinstance(widget, QSpinBox):
+                kwargs[key] = widget.value()
+            elif isinstance(widget, QCheckBox):
+                kwargs[key] = widget.isChecked()
+            elif hasattr(widget, "text"):
+                kwargs[key] = widget.text()
 
         if self.json_checkbox.isChecked():
             kwargs["json_out"] = True
 
-        # clear console and spawn worker thread
         self.output_console.clear()
-        self.output_console.append(f">>> Running plugin '{name}'…\n")
+        self.output_console.append(f">>> Running '{name}' …\n")
 
         worker = Worker(self.manager, name, kwargs)
         worker.finished.connect(self.on_worker_finished)
         worker.error.connect(self.on_worker_error)
 
-        thread = threading.Thread(target=worker.run, daemon=True)
-        thread.start()
+        t = threading.Thread(target=worker.run, daemon=True)
+        t.start()
 
     def on_worker_finished(self, text: str):
         self.output_console.append(text)
@@ -239,30 +208,9 @@ class AppGui(QMainWindow):
     def on_worker_error(self, err: str):
         self.output_console.append(f"ERROR: {err}")
 
-@@ def on_plugin_selected(self):
--            if typ == "select":
-+            if typ == "select":
-                 # unchanged…
-+            elif typ == "file":
-+                btn = QPushButton("Browse…")
-+                lbl = QLabel("No file selected")
-+                h = QHBoxLayout()
-+                h.addWidget(btn); h.addWidget(lbl)
-+                self.dynamic_form.addLayout(h)
-+
-+                def pick():
-+                    path, _ = QFileDialog.getOpenFileName(self, param["label"], 
-+                                                         dialog.get("start", ""), 
-+                                                         dialog.get("filter", "All Files (*)"))
-+                    if path:
-+                        lbl.setText(path)
-+                btn.clicked.connect(pick)
-+                self.inputs[param["name"]] = lambda: lbl.text()
-             elif typ == "int":
-                 # unchanged…
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    window = AppGui()
-    window.show()
+    gui = AppGui()
+    gui.show()
     sys.exit(app.exec())
