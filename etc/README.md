@@ -1,6 +1,3 @@
-Perfect! Here's a tailored `README.md` for the `etc/` directory of a **Python-based** project called **Sentenial-X**. This version assumes the folder contains configuration files, environment variables, and setup scripts relevant to a Python application.
-
-```markdown
 # 🐍 Sentenial-X: etc Directory
 
 This directory contains configuration files and setup scripts for the Python-based Sentenial-X project. These resources help manage environment variables, logging, and runtime settings.
