@@ -168,6 +168,8 @@ source venv/Scripts/activate ## WINDOWS ##
 -----------------------------
 ```bash
 pip install -r requirements.txt
+cd apps/dashboard
+npm install react-hot-toast
 ---
 ```bash
 sudo systemctl daemon-reexec
