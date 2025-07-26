@@ -13,14 +13,12 @@ from memory import enqueue_command
 
 app = typer.Typer(help="📡 Sentenial-X AI Agent CLI Interface")
 
-
 @app.command()
 def start():
     """
     🚀 Start the AI Agent in the foreground.
     """
     os.execvp("python3", ["python3", "agent.py"])
-
 
 @app.command()
 def send(cmd: str):
@@ -29,7 +27,6 @@ def send(cmd: str):
     """
     asyncio.run(enqueue_command(AGENT_ID, cmd))
     typer.echo(f"✅ Command queued: {cmd}")
-
 
 @app.command()
 def status():
@@ -43,7 +40,6 @@ def status():
         typer.echo(json.dumps(resp.json(), indent=2))
     except Exception as e:
         typer.echo(f"❌ Error: {e}")
-
 
 @app.command()
 def broadcast(message: str):
@@ -60,7 +56,6 @@ def broadcast(message: str):
             typer.echo(f"⚠️ Unexpected response: {resp.status_code}")
     except Exception as e:
         typer.echo(f"❌ Broadcast error: {e}")
-
 
 if __name__ == "__main__":
     app()
