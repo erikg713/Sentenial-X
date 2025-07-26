@@ -3,13 +3,12 @@ import json
 import os
 import typer
 import requests
-
+from memory import enqueue_command
 from config import (
     COMMAND_POLL_INTERVAL,
     AGENT_ID,
     NETWORK_PORT,
 )
-from memory import enqueue_command
 
 app = typer.Typer(help="📡 Sentenial-X AI Agent CLI Interface")
 
