@@ -1,31 +1,53 @@
-import argparse
-from plugin_registry import load_plugins, get_plugin_parameters, run_plugin
+import asyncio
+import json
+import os
+import typer
+import requests
+from config import COMMAND_POLL_INTERVAL, AGENT_ID, NETWORK_PORT
+from memory import enqueue_command
 
-def main():
-    load_plugins()
+app = typer.Typer(help="Sentenial-X AI Agent CLI")
 
-    parser = argparse.ArgumentParser(description="Run a plugin from CLI")
-    parser.add_argument("plugin", help="Plugin name (e.g. ransomware_emulator)")
+@app.command()
+def start():
+    """
+    Start the agent in the foreground.
+    """
+    os.execvp("python3", ["python3", "agent.py"])
 
-    # Parse known args first
-    args, unknown = parser.parse_known_args()
-    plugin_name = args.plugin
+@app.command()
+def send(cmd: str):
+    """
+    Enqueue a command for the agent.
+    """
+    asyncio.run(enqueue_command(AGENT_ID, cmd))
+    typer.echo(f"Command queued: {cmd}")
 
-    parameters = get_plugin_parameters(plugin_name)
+@app.command()
+def status():
+    """
+    Query the agent's health endpoint.
+    """
+    url = f"http://localhost:{NETWORK_PORT}/health"
+    resp = requests.get(url)
+    if resp.ok:
+        data = resp.json()
+        typer.echo(json.dumps(data, indent=2))
+    else:
+        typer.echo(f"Failed to reach agent: {resp.status_code}")
 
-    # Add plugin-specific parameters dynamically
-    for param in parameters:
-        name = f"--{param['name']}"
-        if param["type"] == "bool":
-            parser.add_argument(name, action="store_true" if param.get("default", False) else "store_false")
-        else:
-            parser.add_argument(name, type=int if param["type"] == "int" else str)
-
-    args = parser.parse_args()
-    plugin_args = {param['name']: getattr(args, param['name']) for param in parameters}
-
-    result = run_plugin(plugin_name, **plugin_args)
-    print("✅ Plugin Result:", result)
+@app.command()
+def broadcast(message: str):
+    """
+    Manually broadcast a status message.
+    """
+    url = f"http://localhost:{NETWORK_PORT}/message"
+    payload = {"from": AGENT_ID, "msg": message}
+    resp = requests.post(url, json=payload)
+    if resp.status_code == 204:
+        typer.echo("Broadcast sent.")
+    else:
+        typer.echo(f"Error: {resp.status_code}")
 
 if __name__ == "__main__":
-    main()
+    app()
