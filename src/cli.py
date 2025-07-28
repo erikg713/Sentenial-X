@@ -1,3 +1,12 @@
+ def main():
++    banner = """
++   🚨 Sentenial-X A.I. – The Ultimate Cyber Guardian 🚨
++   Crafted for resilience. Engineered for vengeance.
++   A digital sentinel with the mind of a warrior and the reflexes of a machine.
++    """
++    print(banner)
+     # existing CLI entrypoints…
+
 import argparse
 from sentenialx.ai_core import (
     detect_prompt_threat,
