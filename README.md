@@ -483,3 +483,108 @@ python cli.py shutdown     # Nuke the bot net (soft)
 │  ... more threats ...      │
 └────────────────────────────┘
 ----------------------------------------------------
+---
+------------------------------
+### ROADMAP ###
+------------------------------
+# Roadmap for Enhancement Implementation
+
+---
+
+## Phase 1: Foundations (Weeks 1–3)
+
+- Establish adversarial-hardening infrastructure  
+  • Select fuzzing tools (boofuzz, AFL) and adversarial LLM samplers  
+  • Define malformed HTTP and compliance-query test cases  
+  • Integrate adversarial examples into the fine-tuning pipeline  
+
+- Prototype continuous ingestion pipelines  
+  • Deploy Apache Airflow DAGs to pull CVE feeds and pen-test reports hourly  
+  • Normalize, tag, and store new items in a centralized artifact store  
+
+- Define governance and privacy controls  
+  • Choose Vault (HashiCorp) for secrets and key management  
+  • Draft RBAC policies for dataset access (e.g., using Open Policy Agent)  
+
+Risk Mitigation  
+- Insufficient adversarial coverage → Schedule manual red-team reviews of generated test cases  
+- Pipeline breakages → Implement unit tests for every DAG and data transformation  
+
+---
+
+## Phase 2: Hardening & Governance (Weeks 4–6)
+
+- Run adversarial training and evaluation  
+  • Generate 10K+ malformed inputs via fuzzers and LLM-based mutation  
+  • Fine-tune LoRA adapters with elevated loss weighting on adversarial corpus  
+  • Measure robustness drop-in using custom SQLi/XSS/CRLF benchmarks  
+
+- Harden data storage and access  
+  • Encrypt raw logs and processed datasets at rest (AES-256) and in transit (TLS 1.3)  
+  • Implement Vault HSM integration for key rotation  
+  • Enforce OPA policies via CI checks on all dataset commits  
+
+- Spin up drift detection monitors  
+  • Deploy Prometheus exporters for precision/recall on rolling fresh data  
+  • Configure Alertmanager to notify when metrics drop below thresholds  
+
+Risk Mitigation  
+- Encryption performance impact → Benchmark I/O overhead and tune block sizes  
+- Drift alerts noise → Use anomaly detection to reduce false positives  
+
+---
+
+## Phase 3: Scaling & Observability (Weeks 7–9)
+
+- Deploy inference cluster with autoscaling  
+  • Containerize with Docker + NVIDIA GPU Operator on Kubernetes  
+  • Configure GPU and CPU pools; set HPA based on queue length and latency SLIs  
+
+- Enhance observability  
+  • Instrument model server with OpenTelemetry (traces + metrics)  
+  • Log prompt embeddings, HTTP-fusion vectors, token-level attributions  
+  • Build Grafana dashboards for tail latency (p99/p999), drift tags, and alert volumes  
+
+- Pilot human-in-the-loop feedback  
+  • Surface low-confidence alerts in a review UI (React + FastAPI)  
+  • Store analyst thumbs up/down in a feedback DB to drive active learning  
+
+Risk Mitigation  
+- Latency overhead from tracing → Sample at 1% request rate and batch writes  
+- Insufficient feedback volume → Incentivize analysts via SLA gamification  
+
+---
+
+## Phase 4: Automation & Production (Weeks 10–12)
+
+- Automate continuous fine-tuning  
+  • Trigger incremental LoRA updates via CI when new CVEs breach risk thresholds  
+  • Maintain “warm” checkpoints and automatic rollback on accuracy regression  
+
+- Integrate with orchestration and SIEM  
+  • Hook alerts and remediation recommendations into Splunk/Elastic via JSON webhooks  
+  • Drive dynamic ACL rules using a WASM policy engine (Open Policy Agent + Rego)  
+
+- Conduct full-scale load and chaos tests  
+  • Simulate thousands of concurrent queries to validate sub-200 ms SLAs  
+  • Introduce pod restarts, network latency, and GPU failures to test resilience  
+
+Risk Mitigation  
+- CI-induced model regressions → Gate deployments behind canary inference on golden data  
+- Chaos test disruptions → Isolate chaos experiments in a dedicated staging cluster  
+
+---
+
+## Summary Timeline
+
+| Phase                     | Duration   | Core Tools                                   | Key Deliverables                                    |
+|---------------------------|------------|-----------------------------------------------|-----------------------------------------------------|
+| Foundations               | Weeks 1–3  | boofuzz, AFL, Airflow, Vault, OPA             | Adversarial pipeline, ingestion DAGs, RBAC draft    |
+| Hardening & Governance    | Weeks 4–6  | Prometheus, Alertmanager, Vault HSM, OPA      | Adversarial-hardened model, encrypted storage, drift alerts |
+| Scaling & Observability   | Weeks 7–9  | Kubernetes, NVIDIA GPU Operator, Grafana, OTEL| Autoscaled inference, dashboards, feedback UI       |
+| Automation & Production   | Weeks 10–12| CI/CD (GitHub Actions), OPA/Rego, Splunk API  | Continuous fine-tuning, SIEM integration, chaos-tested cluster |
+
+---
+
+This roadmap lays out clear milestones, tooling decisions, and risk mitigations to transform your small LLM into a resilient, scalable cyber-defense sentinel. Next, we can break down each phase into sprint tasks, ownership assignments, and success criteria.
+---
