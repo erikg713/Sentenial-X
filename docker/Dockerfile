@@ -1,10 +1,13 @@
-ENTRYPOINT ["sh", "-c", "echo 'Sentenial-X: Crafted for resilience, Engineered for vengeance.' && uvicorn api_server:app --host 0.0.0.0 --port 8000"]
-FROM python:3.10-slim
+FROM pytorch/pytorch:2.1.0-cuda11.8-cudnn8-runtime
+
 WORKDIR /app
-COPY requirements.txt .
-RUN pip install -r requirements.txt
-COPY src/ api_server.py ./
-COPY models/optimized ./models/optimized
+COPY requirements.txt config.yml ./
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY src/ ./src
+
+# Expose inference port
 EXPOSE 8000
-CMD ["uvicorn", "api_server:app", "--host", "0.0.0.0", "--port", "8000"]
+
+CMD ["python", "-u", "src/api_server.py"]
 
