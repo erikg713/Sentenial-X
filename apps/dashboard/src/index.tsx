@@ -1,3 +1,12 @@
+-<h1>Sentenial-X A.I.</h1>
+-<p>The Ultimate Cyber Guardian — Built to Learn, Adapt, and Strike Back</p>
++<header className="hero">
++  <h1>Sentenial-X A.I. 🚀</h1>
++  <h2>The Ultimate Cyber Guardian</h2>
++  <p>Crafted for resilience. Engineered for vengeance.</p>
++  <p>Not just defense — a digital sentinel with the mind of a warrior and the reflexes of a machine.</p>
++</header>
+
 "use client"
 
 import { useState, useEffect } from "react" import { Button } from "@/components/ui/button" import { Card, CardContent, CardTitle } from "@/components/ui/card" import { toast } from "react-hot-toast" import { usePremium } from "@/hooks/usePremium"
