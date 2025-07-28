@@ -1,3 +1,5 @@
+import logging
+import os
 import asyncio
 from sentenial_x.core.cortex import Brainstem, SemanticAnalyzer, DecisionEngine, SignalRouter
 from sentenial_x.core.cortex.stream_processor import StreamProcessor
