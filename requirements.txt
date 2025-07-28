@@ -44,3 +44,12 @@ mypy>=1.10.0
 # Log / Policy Export
 pyyaml>=6.0.1
 ujson>=5.9.0
+
+fastapi==0.95.1
+uvicorn[standard]==0.23.0
+torch==2.1.0
+transformers==4.35.0
+accelerate==0.24.0
+peft==0.5.0
+omegaconf==2.3.0
+python-multipart==0.0.6
