@@ -96,6 +96,14 @@ Typical users of the software:
 - **Dynamic Policy Engine:** WASM- or Python-based rules trigger sandboxing, honeypots, route isolation, ACL mutation, or traffic shutdown on threat detection.
 - **Automated Response:** All actions logged for forensic analysis and rollback.
 ---
+---------------------------------
+### ENVIRONMENT SETUP ###
+---------------------------------
+```
+conda create -n sentenial-x python=3.10
+conda activate sentenial-x
+pip install -r requirements.txt
+```
 -------------------------------
 ### Root Directory Layout ###
 -------------------------------
