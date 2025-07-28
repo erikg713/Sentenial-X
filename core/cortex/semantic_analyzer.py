@@ -1,4 +1,20 @@
 import re
+from sentenial_x.core.cortex.model.bert_classifier import BERTThreatClassifier
+
+class SemanticAnalyzer:
+    def __init__(self):
+        self.classifier = BERTThreatClassifier()
+
+    def analyze(self, signal: dict):
+        description = signal.get("description", "")
+        if not description:
+            return {"intent": "unknown", "confidence": 0.0}
+
+        intent, confidence = self.classifier.classify(description)
+        return {
+            "intent": intent,
+            "confidence": confidence
+        }
 
 class SemanticAnalyzer:
     def __init__(self):
