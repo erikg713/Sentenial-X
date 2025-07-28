@@ -1,0 +1,23 @@
+# plugins/osint-ingestor/manifest.yml
+name: osint-ingestor
+version: 1.0.0
+description: "Ingests and normalizes threat indicators from OSINT feeds."
+author: "Your Org or Name"
+category: "Threat Intelligence"
+entrypoint: "plugin.py:OSINTIngestor"
+dependencies:
+  - requests>=2.25.0
+  - pymisp>=2.4.151
+hooks:
+  on_startup:
+    - init_feeds
+  on_feed_pull:
+    - parse_and_normalize
+  on_tick:
+    - schedule_refresh
+config_schema:
+  feeds:
+    type: list
+    required: true
+    items:
+      type: string
