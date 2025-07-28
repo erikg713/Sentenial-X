@@ -32,7 +32,20 @@ class MainWindow(QMainWindow):
 
 
 if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    win = MainWindow()
-    win.show()
-    sys.exit(app.exec())
+    from sentenial_x.core.cortex import Brainstem, SemanticAnalyzer, DecisionEngine, SignalRouter
+
+    # Instantiate cortex modules
+    brainstem = Brainstem()
+    analyzer = SemanticAnalyzer()
+    engine = DecisionEngine()
+    router = SignalRouter(brainstem, analyzer, engine)
+
+    # Simulated signal
+    incoming_signal = {
+        "id": "signal-001",
+        "threat_level": 9,
+        "description": "Unauthorized escalation to root access using known CVE RCE payload."
+    }
+
+    result = router.handle(incoming_signal)
+    print(result)
