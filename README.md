@@ -150,6 +150,43 @@ sentenial-x-ai/
 ├── package.json                # Frontend dependencies (dashboard)
 └── README.md                   # Project intro
 ---
+```
+sentenial-x/
+├── data/
+│   ├── raw/                   # Unprocessed logs, CVE feeds, compliance text
+│   ├── processed/             # Tokenized JSONL for LLM and encoder
+│   └── scripts/               # Preprocessing and annotation scripts
+│
+├── models/
+│   ├── lora/                  # Checkpoints for LoRA adapters
+│   ├── distill/               # Distilled model checkpoints
+│   └── encoder/               # HTTP-traffic encoder checkpoints
+│
+├── src/
+│   ├── llm_training.py        # Fine-tuning + distillation pipeline
+│   ├── encoder_training.py    # Train HTTP-traffic transformer
+│   ├── optimize.py            # Pruning & quantization utilities
+│   ├── api_server.py          # gRPC/REST inference server
+│   ├── utils.py               # Shared preprocessing & evaluation code
+│   └── config.yml             # Hyperparameters and paths
+│
+├── docker/
+│   ├── Dockerfile             # Container for inference
+│   └── docker-compose.yml     # Optionally compose LLM + vector store
+│
+├── tests/
+│   ├── test_llm_accuracy.py   # Unit tests for LLM QA and summarization
+│   ├── test_encoder.py        # Checks encoder embeddings
+│   └── test_api.py            # Integration tests for API endpoints
+│
+├── .github/
+│   └── workflows/
+│       └── ci.yml             # GitHub Actions for lint, tests, build
+│
+├── requirements.txt           # Python dependencies
+└── README.md
+```
+---
 -------------------------
 ### Getting Started ###
 -------------------------
