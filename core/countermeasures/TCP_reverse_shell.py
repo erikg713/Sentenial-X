@@ -9,6 +9,7 @@ Description:
     Built for reliability, stealth, and maintainability.
 """
 
+import logging
 import socket
 import subprocess
 import os
