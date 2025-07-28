@@ -1,8 +1,15 @@
 from transformers import pipeline
+import torch
 
 class BERTThreatClassifier:
     def __init__(self):
-        self.classifier = pipeline("text-classification", model="bhadresh-savani/bert-base-uncased-emotion")  # Replace with fine-tuned threat model if available
+        device = 0 if torch.cuda.is_available() else -1
+        self.classifier = pipeline(
+            "text-classification",
+            model="bhadresh-savani/bert-base-uncased-emotion",  # placeholder, see trainer below
+            device=device
+        )
+
         self.intent_map = {
             "fear": "breach",
             "anger": "exploit",
@@ -17,4 +24,3 @@ class BERTThreatClassifier:
         label = result['label'].lower()
         score = result['score']
         return self.intent_map.get(label, "unknown"), score
-
