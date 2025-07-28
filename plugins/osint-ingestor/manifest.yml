@@ -2,7 +2,7 @@
 name: osint-ingestor
 version: 1.0.0
 description: "Ingests and normalizes threat indicators from OSINT feeds."
-author: "Your Org or Name"
+author: "DEV713"
 category: "Threat Intelligence"
 entrypoint: "plugin.py:OSINTIngestor"
 dependencies:
