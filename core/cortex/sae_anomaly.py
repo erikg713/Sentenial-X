@@ -10,6 +10,7 @@ Core Features:
 - Rolling behavior analysis with windowing
 """
 
+import os
 import numpy as np
 import logging
 from typing import List, Dict, Any, Optional
