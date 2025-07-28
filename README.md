@@ -190,6 +190,9 @@ python core/engine/semantics_analyzer.py
 ---------------------------------------
 ## Root structure for Sentenial X A.I. ##
 ---------------------------------------
+### DOCKER-BUILD ###
+docker build -t sentenial-x-infer docker/
+docker run --gpus all -p 8000:8000 sentenial-x-infer
 
 -----------------------------------
 ## Directory Structure ##
