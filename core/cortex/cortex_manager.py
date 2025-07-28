@@ -6,9 +6,9 @@ Integrates all engines: semantics, profiling, anomaly detection, correlation, st
 """
 
 import logging
+import os
 from typing import List, Dict, Any, Optional
 from datetime import datetime
-
 from core.engine.semantics_analyzer import SemanticsAnalyzer
 from core.engine.correlation_engine import correlate_events
 from core.engine.execution_profiler import profile_execution_chain
