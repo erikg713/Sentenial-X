@@ -1,3 +1,6 @@
+import logging
+import os
+
 class Brainstem:
     def __init__(self):
         self.status = "idle"
