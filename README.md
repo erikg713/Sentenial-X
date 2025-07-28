@@ -586,5 +586,4 @@ Risk Mitigation
 
 ---
 
-This roadmap lays out clear milestones, tooling decisions, and risk mitigations to transform your small LLM into a resilient, scalable cyber-defense sentinel. Next, we can break down each phase into sprint tasks, ownership assignments, and success criteria.
----
+
