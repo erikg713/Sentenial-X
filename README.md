@@ -150,7 +150,6 @@ sentenial-x-ai/
 ├── package.json                # Frontend dependencies (dashboard)
 └── README.md                   # Project intro
 ---
-```
 sentenial-x/
 ├── data/
 │   ├── raw/                   # Unprocessed logs, CVE feeds, compliance text
