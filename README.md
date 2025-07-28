@@ -585,5 +585,31 @@ Risk Mitigation
 | Automation & Production   | Weeks 10–12| CI/CD (GitHub Actions), OPA/Rego, Splunk API  | Continuous fine-tuning, SIEM integration, chaos-tested cluster |
 
 ---
+Running Locally
+Build the container:
 
+bash
+docker build -t sentenial-x:dev .
+Run on GPU:
+
+bash
+docker run --gpus all -p 8000:8000 sentenial-x:dev
+Test with curl:
+
+bash
+curl -X POST http://localhost:8000/analyze \
+  -H "Content-Type: application/json" \
+  -d '{"prompt":"Audit ISO27001 A.9.2.3","http_payload":null}'
+This skeleton gives you a working inference API. From here, you can:
+
+Extend cross-attention fusion for HTTP embeddings
+
+Add endpoints for each workflow (/compliance, /vuln, /pentest, etc.)
+
+Integrate Prometheus/OpenTelemetry hooks in api_server.py
+
+Hook into Airflow for continuous retraining
+
+Build the UI dashboard and SIEM connectors
+---
 
