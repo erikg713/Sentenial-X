@@ -20,3 +20,23 @@ curl -X POST "http://localhost:8080/predict" -H "Content-Type: application/json"
 # RUN GUI #
 python -m sentenial_x.core.cortex.gui
 
+# BUILD DOCKER #
+🖥️ Run steps
+Build the container:
+
+bash
+Copy
+Edit
+docker build -t sentenialx-gui .
+Run the container:
+
+bash
+Copy
+Edit
+docker run --gpus all --rm -it sentenialx-gui
+Or with docker-compose:
+
+bash
+Copy
+Edit
+docker-compose up --build
