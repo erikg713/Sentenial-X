@@ -1,0 +1,17 @@
+version: '3.9'
+services:
+  sentenial_gui:
+    build: .
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - QT_QPA_PLATFORM=offscreen
+      - DISPLAY=:99
+    devices:
+      - /dev/nvidiactl
+      - /dev/nvidia0
+      - /dev/nvidia-modeset
+      - /dev/nvidia-uvm
+    volumes:
+      - ./:/app
+    shm_size: '2gb'
