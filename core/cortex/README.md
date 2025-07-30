@@ -17,3 +17,6 @@ uvicorn sentenial_x.core.cortex.server:app --host 0.0.0.0 --port 8080
 # test with
 curl -X POST "http://localhost:8080/predict" -H "Content-Type: application/json" -d '{"text":"Suspicious login attempt detected"}'
 
+# RUN GUI #
+python -m sentenial_x.core.cortex.gui
+
