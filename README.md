@@ -237,6 +237,27 @@ python core/engine/semantics_analyzer.py
 ### DOCKER-BUILD ###
 docker build -t sentenial-x-infer docker/
 docker run --gpus all -p 8000:8000 sentenial-x-infer
+How to run
+Make sure FastAPI and uvicorn are installed:
+
+bash
+Copy
+Edit
+pip install fastapi uvicorn
+Run your FastAPI app:
+
+bash
+Copy
+Edit
+uvicorn sentenial_core.api.synthetic_attack_ws:app --host 0.0.0.0 --port 8000
+Connect a WebSocket client to:
+
+bash
+Copy
+Edit
+ws://localhost:8000/ws/synthetic-attacks
+You’ll receive JSON attack events streamed every second.
+
 
 -----------------------------------
 ## Directory Structure ##
