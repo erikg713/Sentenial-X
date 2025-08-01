@@ -1,45 +1,59 @@
+import os
+import json
 import time
 import random
-import json
-import os
+import logging
+from pathlib import Path
 from datetime import datetime
 
-AGENT_ID = "sentenial-x-ai-bot"
-LOG_PATH = "logs/agent_heartbeat.log"
-COMMAND_QUEUE = "commands/agent_commands.json"
+# === Config ===
+AGENT_ID = os.getenv("AGENT_ID", "sentenial-x-ai-bot")
+BASE_DIR = Path(__file__).parent
+LOG_PATH = BASE_DIR / "logs" / "agent_heartbeat.log"
+COMMAND_QUEUE = BASE_DIR / "commands" / "agent_commands.json"
+HEARTBEAT_INTERVAL = 10  # seconds
+
+# === Logging Setup ===
+os.makedirs(LOG_PATH.parent, exist_ok=True)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler(LOG_PATH, mode='a')
+    ]
+)
 
 def send_heartbeat():
-    os.makedirs("logs", exist_ok=True)
-    with open(LOG_PATH, "a") as log:
-        heartbeat = {
-            "agent": AGENT_ID,
-            "status": "online",
-            "timestamp": datetime.utcnow().isoformat() + "Z"
-        }
-        log.write(json.dumps(heartbeat) + "\n")
-        print(f"[HEARTBEAT] {heartbeat['timestamp']}")
+    heartbeat = {
+        "agent": AGENT_ID,
+        "status": "online",
+        "timestamp": datetime.utcnow().isoformat() + "Z"
+    }
+    logging.info(f"Heartbeat sent: {heartbeat['timestamp']}")
 
 def listen_for_commands():
-    if not os.path.exists(COMMAND_QUEUE):
+    if not COMMAND_QUEUE.exists():
         return
     try:
-        with open(COMMAND_QUEUE, "r") as f:
+        with COMMAND_QUEUE.open("r") as f:
             commands = json.load(f)
         if AGENT_ID in commands:
             for cmd in commands[AGENT_ID]:
-                print(f"[EXECUTE] {cmd}")
+                logging.info(f"Executing command: {cmd}")
+            # Clear commands for this agent
             del commands[AGENT_ID]
-            with open(COMMAND_QUEUE, "w") as f:
+            with COMMAND_QUEUE.open("w") as f:
                 json.dump(commands, f, indent=2)
     except Exception as e:
-        print(f"[ERROR] Command parsing failed: {e}")
+        logging.error(f"Command processing failed: {e}")
 
 def run_agent():
-    print(f"[BOOT] {AGENT_ID} started.")
+    logging.info(f"Agent '{AGENT_ID}' booted.")
     while True:
         send_heartbeat()
         listen_for_commands()
-        time.sleep(10)
+        time.sleep(HEARTBEAT_INTERVAL)
 
 if __name__ == "__main__":
     run_agent()
