@@ -241,16 +241,3 @@ docker compose -f docker/docker-compose.yml up --build inference
 
 ---
 
-This README is a living document — when you want I’ll produce the full investor pitch deck (cinematic PPTX), a hardened Terraform blueprint, or scaffold the actual services (FastAPI templates, Next.js dashboard, and a sample countermeasure WASM runner). Which do you want first?
-
----
-
-Next steps I can do immediately (pick one):
-1. Generate a **cinematic PowerPoint** pitch deck (dark theme, diagrams, investor-ready).  
-2. Create a **production-grade API Gateway** FastAPI template + Dockerfile and CI pipeline.  
-3. Scaffold the **Next.js dashboard** (auth flow + incident timeline UI + Tailwind/Radix).  
-4. Produce **security policy docs** for offensive modules (legal approvals + operator flows).  
-5. Auto-generate `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, and `SECURITY.md`.
-
-Which one do you want me to build now? Beastmode style. 🛡️🔥
-
