@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .config import settings
 from .routers import health, auth_routes, proxy
 from .logger import logger
+from .routers import roles
 
 app = FastAPI(title=settings.APP_NAME, debug=settings.DEBUG, version="0.1.0")
 
