@@ -30,7 +30,30 @@ Sentenial X is a next-generation autonomous cyber-defense platform. It combines 
 sentenial-x-ai/ ├── apps/ │   ├── api-gateway/ │   ├── dashboard/ │   ├── pentest-suite/ │   └── ransomware-emulator/ ├── services/ │   ├── auth/ │   ├── agent-manager/ │   ├── threat-engine/ │   ├── jailbreak-detector/ │   ├── memory-core/ │   ├── compliance-engine/ │   ├── countermeasure-agent/ │   └── legal-shield/ ├── libs/ │   ├── core/ │   ├── ml/ │   └── plugins/ ├── data/ │   ├── embeddings/ │   ├── logs/ │   └── reports/ ├── infra/ │   ├── docker/ │   ├── k8s/ │   └── terraform/ ├── tests/ │   ├── integration/ │   └── unit/ ├── scripts/ ├── .env.example ├── requirements.txt ├── package.json └── README.md
 
 sentenial-x/ ├── data/ ├── models/ ├── src/ ├── docker/ ├── tests/ └── .github/
-
+---
+api-gateway/
+├── app/
+│   ├── __init__.py
+│   ├── main.py
+│   ├── config.py
+│   ├── logger.py
+│   ├── auth.py
+│   ├── deps.py
+│   ├── models.py
+│   ├── routers/
+│   │   ├── __init__.py
+│   │   ├── health.py
+│   │   ├── auth_routes.py
+│   │   └── proxy.py
+│   └── tests/
+│       └── test_health.py
+├── Dockerfile
+├── docker-compose.yml
+├── requirements.txt
+├── .env.example
+└── .github/
+    └── workflows/
+        └── ci.yml
 ---
 
 ## Core Components (brief)
