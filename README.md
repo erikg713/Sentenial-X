@@ -57,6 +57,29 @@ api-gateway/
     └── workflows/
         └── ci.yml
 ```
+```
+sentenialx/
+└── models/
+    ├── encoder/
+    │   ├── __init__.py
+    │   └── text_encoder.py
+    ├── lora/
+    │   ├── __init__.py
+    │   └── lora_tuner.py
+    ├── distill/
+    │   ├── __init__.py
+    │   └── distill_trainer.py
+    ├── orchestrator/
+    │   ├── __init__.py
+    │   ├── config.yaml
+    │   ├── orchestrate.py
+    │   ├── versioning.py
+    │   └── registry.py
+    └── artifacts/              # generated models go here
+sentenialx_mobile/
+└── services/
+    └── models_updater.py       # client-side updater for the app
+```
 ---
 
 ## Core Components (brief)
