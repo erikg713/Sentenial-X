@@ -1,1 +1,11 @@
+# sentenial-x/analytics/gui_dashboard/requirements.txt
 
+# GUI and visualization
+dash>=3.8.0
+dash-bootstrap-components>=1.3.1
+plotly>=5.18.0
+
+# Data handling
+pandas>=2.1.0
+numpy>=1.25.0
+requests>=2.32.0
