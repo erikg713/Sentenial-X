@@ -1,19 +1,46 @@
-import logging
-from logging.handlers import RotatingFileHandler
+# sentenial-x/agents/retaliation_bot/logger.py
+import time
+from typing import Optional, Dict
+from ..telemetry import TelemetryBuffer
+from ..config import ENABLE_ENCRYPTION, ENCRYPTION_KEY
 
-def configure_logger(name: str = "RetaliationBot") -> logging.Logger:
-    logger = logging.getLogger(name)
-    logger.setLevel(logging.INFO)
+class RetaliationLogger:
+    """
+    Structured logging for RetaliationBot.
+    Sends telemetry securely to orchestrator.
+    """
 
-    if not logger.hasHandlers():
-        stream_handler = logging.StreamHandler()
-        file_handler = RotatingFileHandler("retaliation_bot.log", maxBytes=5_000_000, backupCount=3)
+    def __init__(self, agent_id: str):
+        self.agent_id = agent_id
+        self.telemetry = TelemetryBuffer(agent_id)
 
-        formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s")
-        stream_handler.setFormatter(formatter)
-        file_handler.setFormatter(formatter)
+    def log_action(self, action: str, log_source: Optional[str] = None, meta: Optional[Dict] = None):
+        """
+        Log a countermeasure action executed by the bot.
+        """
+        entry_meta = meta or {}
+        if log_source:
+            entry_meta["log_source"] = log_source
 
-        logger.addHandler(stream_handler)
-        logger.addHandler(file_handler)
+        entry = f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Action: {action}"
+        self.telemetry.add_log(entry, meta=entry_meta)
 
-    return logger
+    def log_info(self, message: str, meta: Optional[Dict] = None):
+        """
+        General info logging.
+        """
+        entry = f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] INFO: {message}"
+        self.telemetry.add_log(entry, meta=meta or {})
+
+    def log_warning(self, message: str, meta: Optional[Dict] = None):
+        """
+        Warning logs (potential anomalies detected).
+        """
+        entry = f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] WARNING: {message}"
+        self.telemetry.add_log(entry, meta=meta or {})
+
+    def flush(self):
+        """
+        Force flush of buffered logs to orchestrator.
+        """
+        self.telemetry.flush()
