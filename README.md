@@ -202,6 +202,13 @@ data/processed/ — JSONL tokenized datasets for fine-tuning and evaluation.
 
 models/ — checkpoints and adapters (LoRA, distillation). Keep model artifacts in secure storage.
 
+Run it:
+
+python -m sentenialx.models.orchestrator.orchestrate --stage all
+# or
+python -m sentenialx.models.orchestrator.orchestrate --stage package
+
+This will produce a versioned artifact in ~/.sentenialx/registry/threat_semantics/stable/<version>/... with a manifest.json and checksums.
 
 
 ---
