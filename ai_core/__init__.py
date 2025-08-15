@@ -1,12 +1,17 @@
+# sentenial-x/ai_core/__init__.py
 """
-Sentenial X A.I. Core
-
-This module contains the intelligence engine that powers threat detection,
-feedback learning, secure logging, and runtime communication.
+Sentenial-X AI Core
+------------------
+Central hub for AI-driven functionality:
+- Threat classification (ML/LLM)
+- Jailbreak detection (NLP)
+- Log and telemetry encoding (embeddings)
+- Countermeasure prediction
+- Integration with EndpointAgent and RetaliationBot
 """
 
-from .detection import detect_prompt_threat
-from .logger import log_threat_event
-from .feedback import update_model
-from .ipc_server import start_ipc_server
-
+from .orchestrator import AICoreOrchestrator
+from .threat_classifier import ThreatClassifier
+from .encoder import ThreatTextEncoder
+from .jailbreak_detector import JailbreakDetector
+from .countermeasure_predictor import CountermeasurePredictor
