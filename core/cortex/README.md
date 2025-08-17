@@ -139,6 +139,3 @@ docker-compose up --build
 
 
 ---
-
-Would you like me to also add a 📂 Project Structure diagram + a ⚙️ Configuration section (for setting Kafka brokers, WebSocket URLs, model paths, etc.) so new developers can jump in with zero friction?
-
