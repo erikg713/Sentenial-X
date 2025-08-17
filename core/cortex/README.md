@@ -1,6 +1,5 @@
--------------
 Cortex – Real-Time Threat Intelligence NLP
--------------
+
 Cortex is a high-performance Natural Language Processing (NLP) engine for detecting and classifying threat intents from system logs.
 It supports real-time streaming via Kafka and WebSocket, offers a REST API, provides a graphical user interface, and is fully containerized for production deployments.
 
@@ -12,6 +11,10 @@ It supports real-time streaming via Kafka and WebSocket, offers a REST API, prov
 Features
 
 Installation
+
+Project Structure
+
+Configuration
 
 Training
 
@@ -58,9 +61,52 @@ pip install -r requirements.txt
 
 ---
 
-🧠 Training
+📂 Project Structure
 
-Train the model on your dataset:
+cortex/
+├── cli.py                  # Command line interface (train/run)
+├── __init__.py
+datasets/
+├── threat_intents.csv       # Example dataset
+sentenial_x/
+└── core/
+    └── cortex/
+        ├── daemon.py       # Background service runner
+        ├── server.py       # REST API server (FastAPI + Uvicorn)
+        ├── gui.py          # GUI launcher
+        ├── models/         # Trained model artifacts
+        ├── utils/          # Helper utilities
+        └── __init__.py
+docker-compose.yml
+Dockerfile
+README.md
+requirements.txt
+
+
+---
+
+⚙️ Configuration
+
+Cortex can be configured via environment variables or command-line arguments.
+
+Parameter	Description	Default
+
+--mode	Run mode: kafka | websocket	kafka
+--topic	Kafka topic to consume	pinet_logs
+--kafka	Kafka broker address	localhost:9092
+--ws	WebSocket endpoint	ws://localhost:8080/logs
+--host	API server host	0.0.0.0
+--port	API server port	8080
+DATA_PATH	Path to training dataset	datasets/threat_intents.csv
+MODEL_PATH	Path to save/load trained models	sentenial_x/core/cortex/models/
+
+
+💡 You can define these in a .env file for Docker and Docker Compose deployments.
+
+
+---
+
+🧠 Training
 
 python cortex/cli.py train --data datasets/threat_intents.csv
 
@@ -82,8 +128,6 @@ python cortex/cli.py run --mode websocket --ws ws://localhost:8080/logs
 
 🔧 Background Service
 
-Run Cortex as a daemonized background process:
-
 python -m sentenial_x.core.cortex.daemon --mode kafka --topic pinet_logs --kafka localhost:9092
 
 
@@ -91,16 +135,12 @@ python -m sentenial_x.core.cortex.daemon --mode kafka --topic pinet_logs --kafka
 
 🌐 API Server
 
-Start the REST API with Uvicorn:
-
 uvicorn sentenial_x.core.cortex.server:app --host 0.0.0.0 --port 8080
 
 
 ---
 
 📡 Example Request
-
-Test prediction with curl:
 
 curl -X POST "http://localhost:8080/predict" \
   -H "Content-Type: application/json" \
@@ -110,8 +150,6 @@ curl -X POST "http://localhost:8080/predict" \
 ---
 
 🖥️ GUI
-
-Launch the graphical interface:
 
 python -m sentenial_x.core.cortex.gui
 
@@ -131,11 +169,5 @@ docker run --gpus all --rm -it sentenialx-gui
 Or with Docker Compose
 
 docker-compose up --build
-
-
----
-
-💡 Tip: For production setups, it’s recommended to use Docker Compose with environment variables for Kafka and API configuration.
-
 
 ---
