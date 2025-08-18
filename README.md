@@ -1,5 +1,3 @@
-README.md (drop-in)
-
 # Sentenial X — The Ultimate Cyber Guardian
 
 [![License: Proprietary](https://img.shields.io/badge/license-Proprietary-dark)](#)
@@ -28,7 +26,7 @@ Sentenial X is a next-generation autonomous cyber-defense platform. It combines 
 ## Repo Layout (high level)
 ```
 sentenial-x-ai/ ├── apps/ │   ├── api-gateway/ │   ├── dashboard/ │   ├── pentest-suite/ │   └── ransomware-emulator/ ├── services/ │   ├── auth/ │   ├── agent-manager/ │   ├── threat-engine/ │   ├── jailbreak-detector/ │   ├── memory-core/ │   ├── compliance-engine/ │   ├── countermeasure-agent/ │   └── legal-shield/ ├── libs/ │   ├── core/ │   ├── ml/ │   └── plugins/ ├── data/ │   ├── embeddings/ │   ├── logs/ │   └── reports/ ├── infra/ │   ├── docker/ │   ├── k8s/ │   └── terraform/ ├── tests/ │   ├── integration/ │   └── unit/ ├── scripts/ ├── .env.example ├── requirements.txt ├── package.json └── README.md
-
+```
 sentenial-x/ ├── data/ ├── models/ ├── src/ ├── docker/ ├── tests/ └── .github/
 ```
 ---
