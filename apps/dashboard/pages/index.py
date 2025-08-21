@@ -1,13 +1,13 @@
 # apps/dashboard/pages/index.py
-from analytics.gui_dashboard.dashboard import Dashboard
+from .dashboard_page import DashboardPage
 
-class DashboardPage:
+class IndexPage:
     def __init__(self):
-        self.dashboard = Dashboard()
+        self.page = DashboardPage()
 
     def render(self):
-        grid_data = self.dashboard.render()
+        data = self.page.render()
         print("=== Sentenial-X Dashboard ===")
-        for section, content in grid_data.items():
+        for section, content in data.items():
             print(f"{section.upper()}: {content}")
-        return grid_data
+        return data
