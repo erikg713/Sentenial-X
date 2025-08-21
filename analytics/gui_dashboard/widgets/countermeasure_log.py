@@ -1,40 +1,13 @@
-# sentenial-x/analytics/gui_dashboard/widgets/countermeasure_log.py
-import dash
-from dash import html, dcc, dash_table
-from dash.dependencies import Input, Output
-import pandas as pd
-import requests
-from ...config import API_ENDPOINTS
-
+# analytics/gui_dashboard/widgets/countermeasure_log.py
 class CountermeasureLogWidget:
-    """
-    Dashboard widget displaying RetaliationBot executed actions in real-time.
-    """
-
     def __init__(self):
-        self.id_prefix = "countermeasure-log"
+        self.logs = []
+
+    def add_log(self, agent_id: str, action: str, result: str):
+        self.logs.append({"agent_id": agent_id, "action": action, "result": result})
 
     def render(self):
-        """
-        Returns the Dash component for the widget.
-        """
-        return html.Div(
-            id=f"{self.id_prefix}-container",
-            children=[
-                html.H4("Countermeasure Log", className="mb-2"),
-                dash_table.DataTable(
-                    id=f"{self.id_prefix}-table",
-                    columns=[
-                        {"name": "Timestamp", "id": "timestamp"},
-                        {"name": "Agent ID", "id": "agent_id"},
-                        {"name": "Threat Detected", "id": "threat"},
-                        {"name": "Action Taken", "id": "action"},
-                        {"name": "Status", "id": "status"},
-                    ],
-                    data=[],
-                    style_cell={'textAlign': 'center', 'padding': '5px'},
-                    style_header={'backgroundColor': 'rgb(30, 30, 30)',
-                                  'color': 'white', 'fontWeight': 'bold'},
+        return self.logs[-10:]  # Show last 10 logs                                  'color': 'white', 'fontWeight': 'bold'},
                     style_data={'backgroundColor': 'rgb(50, 50, 50)',
                                 'color': 'white'},
                     style_table={'overflowY': 'auto', 'maxHeight': '400px'}
