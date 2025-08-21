@@ -6,9 +6,14 @@ Provides a real-time interface for monitoring:
 - Agent status (heartbeats, health)
 - Threats (malware, XSS, SQLi)
 - Countermeasures executed by RetaliationBot
-- Telemetry and analytics visualizations
+"""
+Sentenial-X GUI Dashboard
+Provides widgets, layout, and integration with the agent telemetry & alerts.
 """
 
+from .dashboard import Dashboard
+from .layout import Layout
+from .widgets import agent_status, countermeasure_log, telemetry_graph, threat_summary
 from .dashboard import Dashboard
 from .layout import DashboardLayout
 from .widgets.agent_status import AgentStatusWidget
