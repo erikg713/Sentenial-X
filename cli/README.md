@@ -1,4 +1,4 @@
-# Sentenial‑X CLI – Full Operator Guide
+# 💻 Sentenial‑X CLI – Full Operator Guide
 
 Overview
 
