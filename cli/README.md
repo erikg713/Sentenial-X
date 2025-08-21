@@ -202,7 +202,201 @@ Monitor telemetry in real-time for critical alerts.
 Use simulate before deploying new detection policies.
 
 Automate routine scans using cron or task scheduler.
+---
+# 📌 Sentenial-X CLI Overview #
+--------------------------------
+An AI-driven cybersecurity platform with a CLI that lets operators:
+
+Detect adversarial AI (e.g., WormGPT prompts)
+
+Track detection blind spots
+
+Run NLP-based log/event analysis
+
+Stream live telemetry
+
+Dispatch alerts
+
+Execute orchestrator actions
+
+Simulate cyber-attack scenarios
 
 
 
 ---
+
+⚙️ Installation
+
+git clone https://github.com/erikg713/Sentenial-X.git
+cd Sentenial-X
+
+# (optional but recommended)
+python3 -m venv venv
+source venv/bin/activate
+
+pip install -r requirements.txt
+
+> Ensure core modules (memory, config, telemetry, orchestrator, etc.) are in place.
+
+
+
+
+---
+
+🖥️ CLI Usage
+
+Main entrypoint:
+
+./sentenial_cli_full.py [command] [options]
+./sentenial_cli_full.py --help
+
+
+---
+
+🔑 Commands
+
+1. WormGPT Detector
+
+Detect adversarial AI inputs.
+
+./sentenial_cli_full.py wormgpt-detector -p "malicious prompt" -t 0.8
+
+Options:
+
+-p / --prompt → input text (required)
+
+-t / --temperature → randomness (default 0.7)
+
+
+
+---
+
+2. Blind Spot Tracker
+
+Scan for undetected areas.
+
+./sentenial_cli_full.py blindspots
+
+
+---
+
+3. Cortex NLP Threat Analysis
+
+NLP log/network analysis.
+
+./sentenial_cli_full.py cortex -s "/var/log/syslog" -f "error OR failed"
+
+Options:
+
+-s / --source → log file/source (required)
+
+-f / --filter → filter expression
+
+
+
+---
+
+4. Orchestrator
+
+Run central actions.
+
+./sentenial_cli_full.py orchestrator -a "update_policy" -p '{"policy_id": "123"}'
+
+Options:
+
+-a / --action → action name (required)
+
+-p / --params → JSON dict
+
+
+
+---
+
+5. Telemetry Streaming
+
+Stream live telemetry.
+
+./sentenial_cli_full.py telemetry -s "network_monitor" -f "high_severity"
+
+Options:
+
+-s / --source (required)
+
+-f / --filter (optional)
+
+
+
+---
+
+6. Alerts
+
+Dispatch alerts.
+
+./sentenial_cli_full.py alert -t "ransomware_detected" -s "high"
+
+Options:
+
+-t / --type (required)
+
+-s / --severity (default: medium)
+
+
+
+---
+
+7. Threat Simulator
+
+Red-team style scenarios.
+
+./sentenial_cli_full.py simulate -sc "phishing_campaign"
+
+Options:
+
+-sc / --scenario (required)
+
+
+
+---
+
+📂 Logging & Memory
+
+Results auto-logged into SQLite or configured memory backend.
+
+Each entry stores timestamp, action, parameters, and results.
+
+Supports audit/compliance.
+
+
+
+---
+
+🛠️ Extending the CLI
+
+Write a new async handler function.
+
+Add a new subparser in main().
+
+Use enqueue_command to log and execute.
+
+
+
+---
+
+✅ Best Practices
+
+Run inside a venv.
+
+Keep config.py (esp. AGENT_ID & creds) secure.
+
+Monitor telemetry in real time.
+
+Run simulations before deploying new policies.
+
+Automate scans with cron / task scheduler.
+
+
+
+---
+
+Do you want me to create a quick command reference cheatsheet (one-liner examples only), or a more detailed operator playbook (with explanations + use cases per command)?
+
