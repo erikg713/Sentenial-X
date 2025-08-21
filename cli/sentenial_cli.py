@@ -6,7 +6,7 @@ import asyncio
 from datetime import datetime
 
 from sentenial_core import blind_spot_tracker, wormgpt_detector
-from memory import enqueue_command  # <- logs into SQLite memory
+from memory import enqueue_command  # logs into SQLite memory
 from config import AGENT_ID
 
 logging.basicConfig(
@@ -93,48 +93,12 @@ def main():
 
     # Blind Spot Tracker
     blind_parser = subparsers.add_parser(
-        "blindspots", help="Scan for detection blind spots"
+        "blindspots",
+        help="Scan for detection blind spots"
     )
     blind_parser.set_defaults(func=lambda args: asyncio.run(run_blind_spot_tracker(args)))
 
-    args = parser.parse_args()
-    args.func(args)
-
-
-if __name__ == "__main__":
-    main()        print(f"- {issue}")
-
-
-# ---- Main Entrypoint ---- #
-
-def main():
-    parser = argparse.ArgumentParser(
-        description="Sentenial-X AI Defensive CLI"
-    )
-    subparsers = parser.add_subparsers(dest="command", required=True)
-
-    # WormGPT Detector
-    worm_parser = subparsers.add_parser(
-        "wormgpt-detector",
-        help="Simulate & counter WormGPT-style attacks"
-    )
-    worm_parser.add_argument(
-        "-p", "--prompt", type=str, required=True,
-        help="Adversarial input to analyze"
-    )
-    worm_parser.add_argument(
-        "-t", "--temperature", type=float, default=0.7,
-        help="Exploration randomness"
-    )
-    worm_parser.set_defaults(func=run_wormgpt_detector)
-
-    # Blind Spot Tracker
-    blind_parser = subparsers.add_parser(
-        "blindspots", help="Scan for detection blind spots"
-    )
-    blind_parser.set_defaults(func=run_blind_spot_tracker)
-
-    # TODO: cortex, analyzer, engine modules
+    # TODO: add cortex, analyzer, engine CLI modules
 
     args = parser.parse_args()
     args.func(args)
