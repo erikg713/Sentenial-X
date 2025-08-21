@@ -1,40 +1,14 @@
-# sentenial-x/analytics/gui_dashboard/widgets/telemetry_graph.py
-import dash
-from dash import html, dcc
-from dash.dependencies import Input, Output
-import plotly.graph_objs as go
-import pandas as pd
-import requests
-from ...config import API_ENDPOINTS
-
+# analytics/gui_dashboard/widgets/telemetry_graph.py
 class TelemetryGraphWidget:
-    """
-    Dashboard widget displaying telemetry metrics from agents in real-time.
-    """
-
     def __init__(self):
-        self.id_prefix = "telemetry-graph"
+        self.data = []
+
+    def add_data(self, telemetry: dict):
+        self.data.append(telemetry)
 
     def render(self):
-        """
-        Returns the Dash component for the widget.
-        """
-        return html.Div(
-            id=f"{self.id_prefix}-container",
-            children=[
-                html.H4("Telemetry Metrics", className="mb-2"),
-                dcc.Graph(
-                    id=f"{self.id_prefix}-graph",
-                    figure=go.Figure(),
-                    style={"height": "400px"}
-                ),
-                dcc.Interval(
-                    id=f"{self.id_prefix}-interval",
-                    interval=5000,  # refresh every 5 seconds
-                    n_intervals=0
-                )
-            ]
-        )
+        # Simplified rendering, replace with charting in real frontend
+        return self.data[-20:]  # Last 20 telemetry points        )
 
     def register_callbacks(self, app: dash.Dash):
         """
