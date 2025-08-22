@@ -1,40 +1,39 @@
 {
   "ioc_triggers": [
     {
-      "id": "IOC-001",
-      "type": "file_creation",
-      "description": "Suspicious executable dropped in temp directory",
-      "pattern": "C:\\\\Users\\\\.*\\\\AppData\\\\Local\\\\Temp\\\\.*\\.exe$",
+      "id": "IOC001",
+      "type": "file_hash",
+      "value": "e99a18c428cb38d5f260853678922e03",
+      "description": "Known malware sample - MD5 hash",
       "severity": "high",
-      "tags": ["dropper", "payload", "windows"]
+      "actions": ["alert", "quarantine"]
     },
     {
-      "id": "IOC-002",
-      "type": "registry_key",
-      "description": "Persistence via Run key",
-      "pattern": "HKCU\\\\Software\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Run\\\\.*",
+      "id": "IOC002",
+      "type": "domain",
+      "value": "malicious.example.com",
+      "description": "C2 domain used in phishing campaigns",
       "severity": "medium",
-      "tags": ["persistence", "autorun"]
+      "actions": ["alert", "block"]
     },
     {
-      "id": "IOC-003",
-      "type": "network_connection",
-      "description": "Outbound connection to known C2 domain",
-      "pattern": ".*malicious-c2\\.net$",
-      "severity": "critical",
-      "tags": ["command-control", "exfiltration"]
+      "id": "IOC003",
+      "type": "ip_address",
+      "value": "192.168.56.101",
+      "description": "Suspicious internal IP flagged for lateral movement",
+      "severity": "low",
+      "actions": ["log"]
     },
     {
-      "id": "IOC-004",
-      "type": "process_injection",
-      "description": "Remote thread injection into explorer.exe",
-      "pattern": "explorer\\.exe",
-      "severity": "critical",
-      "tags": ["injection", "evasion"]
-    },
-    {
-      "id": "IOC-005",
-      "type": "powershell_script",
+      "id": "IOC004",
+      "type": "registry_key",
+      "value": "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run\\badactor",
+      "description": "Persistence mechanism via registry",
+      "severity": "high",
+      "actions": ["alert", "isolate"]
+    }
+  ]
+}      "type": "powershell_script",
       "description": "Base64-encoded PowerShell payload detected",
       "pattern": "powershell.*-enc.*[A-Za-z0-9+/=]{100,}",
       "severity": "high",
