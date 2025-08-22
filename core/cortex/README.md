@@ -1,4 +1,5 @@
-Cortex – Real-Time Threat Intelligence NLP
+---
+# Cortex – Real-Time Threat Intelligence NLP
 
 Cortex is a high-performance Natural Language Processing (NLP) engine for detecting and classifying threat intents from system logs.
 It supports real-time streaming via Kafka and WebSocket, offers a REST API, provides a graphical user interface, and is fully containerized for production deployments.
