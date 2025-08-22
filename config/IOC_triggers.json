@@ -38,7 +38,7 @@
       "pattern": "powershell.*-enc.*[A-Za-z0-9+/=]{100,}",
       "severity": "high",
       "tags": ["obfuscation", "script", "powershell"]
-    },
+    }
     {
       "id": "IOC-006",
       "type": "dns_request",
@@ -54,7 +54,7 @@
       "pattern": ".*\\\\Tasks\\\\MalwareTask$",
       "severity": "medium",
       "tags": ["taskschd", "persistence"]
-    },
+    }
     {
       "id": "IOC-008",
       "type": "script_execution",
