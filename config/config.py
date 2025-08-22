@@ -1,18 +1,36 @@
+"""
+Sentenial‑X config/config.py
+Centralized configuration loader and validator.
+"""
+
 import os
-from dotenv import load_dotenv
+from pathlib import Path
+import yaml
 
-# Load environment-specific file
-env_file = f".env.{os.getenv('FLASK_ENV', 'development')}"
-load_dotenv(dotenv_path=env_file)
+# Path to default config
+DEFAULT_CONFIG_PATH = Path(__file__).parent / "config.yaml"
 
-class Config:
-    FLASK_ENV = os.getenv("FLASK_ENV", "production")
-    FLASK_DEBUG = os.getenv("FLASK_DEBUG", "0") == "1"
-    LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
+def load_defaults():
+    with open(DEFAULT_CONFIG_PATH, "r", encoding="utf-8") as f:
+        return yaml.safe_load(f)
 
-    DATABASE_URL = os.getenv("DATABASE_URL")
-    JWT_SECRET = os.getenv("JWT_SECRET")
+def apply_env_overrides(config):
+    # Example: override DB URL if set in environment
+    if "DB_URL" in os.environ:
+        config["database"]["url"] = os.environ["DB_URL"]
+    return config
 
-    # Optional features
-    ENABLE_GUI = os.getenv("ENABLE_GUI_DASHBOARD", "false").lower() == "true"
-    ENABLE_DEEP_EMULATION = os.getenv("ENABLE_DEEP_EMULATION", "false").lower() == "true"
+def validate(config):
+    required_keys = ["database", "security", "ml"]
+    for key in required_keys:
+        if key not in config:
+            raise ValueError(f"Missing required config section: {key}")
+
+# Public API
+def get_config():
+    cfg = load_defaults()
+    cfg = apply_env_overrides(cfg)
+    validate(cfg)
+    return cfg
+
+CONFIG = get_config()
