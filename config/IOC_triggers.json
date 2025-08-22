@@ -33,8 +33,7 @@
       "actions": ["alert", "isolate"]
     }
   ]
-}      "type": "powershell_script",
-      "description": "Base64-encoded PowerShell payload detected",
+}      "description": "Base64-encoded PowerShell payload detected",
       "pattern": "powershell.*-enc.*[A-Za-z0-9+/=]{100,}",
       "severity": "high",
       "tags": ["obfuscation", "script", "powershell"]
