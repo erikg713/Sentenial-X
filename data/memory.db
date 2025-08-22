@@ -1,1 +1,23 @@
+# last 24h high-severity alerts
+sqlite3 data/memory.db "
+SELECT id,type,severity,timestamp
+FROM alerts
+WHERE severity='high' AND timestamp >= datetime('now','-1 day')
+ORDER BY timestamp DESC;
+"
 
+# orchestrator/block actions issued
+sqlite3 data/memory.db "
+SELECT id,action,timestamp
+FROM commands
+WHERE action LIKE 'block_%' OR action='update_policy'
+ORDER BY timestamp DESC;
+"
+
+# blindspot events, highest risk first
+sqlite3 data/memory.db "
+SELECT id,source,risk,timestamp
+FROM events
+WHERE type='blindspot'
+ORDER BY CASE risk WHEN 'high' THEN 3 WHEN 'medium' THEN 2 ELSE 1 END DESC, timestamp DESC;
+"
