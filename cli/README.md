@@ -400,3 +400,35 @@ Automate scans with cron / task scheduler.
 
 Do you want me to create a quick command reference cheatsheet (one-liner examples only), or a more detailed operator playbook (with explanations + use cases per command)?
 
+📌 Sentenial-X CLI Cheatsheet
+
+🔍 Detect Adversarial AI
+
+./sentenial_cli_full.py wormgpt-detector -p "malicious prompt example"
+
+🕳️ Scan Blind Spots
+
+./sentenial_cli_full.py blindspots
+
+🧠 NLP Threat Analysis
+
+./sentenial_cli_full.py cortex -s "/var/log/syslog" -f "error OR failed"
+
+⚙️ Orchestrator Command
+
+./sentenial_cli_full.py orchestrator -a "update_policy" -p '{"policy_id": "123"}'
+
+📡 Stream Telemetry
+
+./sentenial_cli_full.py telemetry -s "network_monitor" -f "high_severity"
+
+🚨 Dispatch Alert
+
+./sentenial_cli_full.py alert -t "ransomware_detected" -s "high"
+
+🎯 Simulate Threat
+
+./sentenial_cli_full.py simulate -sc "phishing_campaign"
+
+
+---
