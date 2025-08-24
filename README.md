@@ -295,3 +295,43 @@ docker compose -f docker/docker-compose.yml up --build inference
 
 ---
 
+**Overview of Sentenial X:**
+
+Sentenial X represents a state-of-the-art platform for cyber defense, tailored to shield organizations from evolving digital threats. It employs sophisticated AI technology to learn and adapt dynamically, setting it apart from conventional systems that depend on static protocols.
+
+---
+
+**Key Features:**
+
+1. **Adaptive AI Protection:** Continuously evolves by learning from global threat data to enhance detection capabilities.
+2. **Automated Intelligence:** Streamlines detection and response processes, minimizing the need for manual intervention.
+3. **Anticipatory Defense:** Identifies and mitigates potential threats ahead of time using advanced predictive analytics.
+4. **Integrated Compliance:** Seamlessly incorporates regulatory standards into its operational framework.
+5. **Robust Architecture:** Flexible design that functions effectively across cloud, on-premises, and hybrid setups.
+
+---
+
+**Distinctive Attributes:**
+
+- **Learning and Counteractive AI:** Adapts to emerging threats by training against malicious AI technologies.
+- **Comprehensive Insight:** Provides detailed visibility into security threats and compliance status through consolidated dashboards.
+- **Attack Simulation Engine:** Safely replicates real-world attack scenarios to evaluate and strengthen defenses.
+- **Self-Recovery Mechanism:** Instantly rectifies breaches by isolating affected areas and restoring previous states.
+
+---
+
+**Modular Framework:**
+
+The architecture of Sentenial X is modular, allowing for adaptability and growth:
+
+- **Cortex:** Utilizes natural language processing for in-depth threat analysis.
+- **Orchestrator:** Uses AI to manage detection and response strategies.
+- **Simulator:** Simulates attack scenarios for testing and validation.
+- **Engine:** Oversees file protection, process monitoring, and network security.
+- **GUI Dashboard:** Displays threats, compliance data, and real-time telemetry in an intuitive format.
+
+---
+
+**Mission Statement:**
+
+Sentenial X aims to go beyond mere defense; it is engineered to learn and respond to threats actively. By merging advanced AI, compliance practices, automation, and proactive defense measures, Sentenial X transforms cybersecurity into a responsive and intelligent safeguard.
