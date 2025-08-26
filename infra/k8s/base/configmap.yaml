@@ -1,1 +1,9 @@
-
+# infra/k8s/base/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sentenial-config
+  namespace: sentenial
+data:
+  LOG_LEVEL: "INFO"
+  MODEL_PATH: "/models"
