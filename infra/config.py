@@ -1,40 +1,77 @@
 """
-Configuration loader and helpers.
+Configuration Loader
+====================
 
-This module centralizes how the application reads configuration from the
-environment or .env files. It favors explicit conversions, helpful error
-messages for missing/invalid configuration, and safe logging (secrets are
-redacted).
-
-Usage examples:
-    DATABASE_URL = get("DATABASE_URL", default="sqlite:///sentenial.db")
-    MAX_WORKERS = get_int("MAX_WORKERS", default=4)
-    DEBUG = get_bool("DEBUG", default=False)
+Bridges Terraform outputs into Python runtime configs.
 """
 
-from __future__ import annotations
-
+import json
 import os
 from pathlib import Path
-from typing import Any, Callable, Iterable, List, Optional
-
-from dotenv import find_dotenv, load_dotenv
-
 from . import logger
 
-# Attempt to load a .env file if present in the project tree (no override by default).
-_env_path = find_dotenv()
-if _env_path:
-    load_dotenv(_env_path, override=False)
-    logger.debug("Loaded .env from %s", _env_path)
-else:
-    logger.debug("No .env file found; relying on environment variables only.")
+# Default path where terraform writes outputs
+_TERRAFORM_OUTPUTS_FILE = Path(__file__).resolve().parent / "terraform" / "terraform_outputs.json"
 
 
-# Helpers ---------------------------------------------------------------------
-_SENSITIVE_HINTS = ("KEY", "SECRET", "TOKEN", "PASSWORD", "PWD", "DSN", "AWS", "GCP")
+class Config:
+    """Centralized configuration loader."""
+
+    def __init__(self, terraform_outputs: dict | None = None):
+        self._terraform_outputs = terraform_outputs or self._load_terraform_outputs()
+
+        # Database
+        self.db_endpoint = self._get_output("db_endpoint")
+        self.db_name = os.getenv("DB_NAME", "sentenial")
+        self.db_user = os.getenv("DB_USER", "postgres")
+        self.db_password = os.getenv("DB_PASSWORD", "changeme")
+
+        # Redis
+        self.cache_endpoint = self._get_output("cache_endpoint")
+
+        # Kafka
+        self.kafka_brokers = self._get_output("kafka_bootstrap_brokers")
+
+    def _load_terraform_outputs(self) -> dict:
+        if not _TERRAFORM_OUTPUTS_FILE.exists():
+            logger.warning("Terraform outputs file not found. Run 'terraform output -json > terraform_outputs.json'")
+            return {}
+
+        try:
+            with open(_TERRAFORM_OUTPUTS_FILE, "r") as f:
+                data = json.load(f)
+            logger.info("Terraform outputs loaded successfully ✅")
+            return data
+        except Exception as e:
+            logger.error(f"Failed to load terraform outputs ❌: {e}")
+            return {}
+
+    def _get_output(self, key: str) -> str | None:
+        if key not in self._terraform_outputs:
+            logger.warning(f"Terraform output missing: {key}")
+            return None
+        return self._terraform_outputs[key].get("value")
+
+    def as_dict(self) -> dict:
+        """Return config as a dictionary (for fastapi, etc.)."""
+        return {
+            "db": {
+                "endpoint": self.db_endpoint,
+                "name": self.db_name,
+                "user": self.db_user,
+                "password": self.db_password,
+            },
+            "cache": {
+                "endpoint": self.cache_endpoint,
+            },
+            "kafka": {
+                "brokers": self.kafka_brokers,
+            },
+        }
 
 
+# Singleton
+config = Config()
 def _redact(key: str, value: Optional[str]) -> str:
     """Return a safe representation of a config value for logging."""
     if value is None:
