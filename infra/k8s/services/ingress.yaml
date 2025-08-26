@@ -1,0 +1,42 @@
+# infra/k8s/services/ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: sentenial-ingress
+  namespace: sentenial
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: sentenial.local
+      http:
+        paths:
+          - path: /cortex
+            pathType: Prefix
+            backend:
+              service:
+                name: cortex
+                port:
+                  number: 8080
+          - path: /analyzer
+            pathType: Prefix
+            backend:
+              service:
+                name: analyzer
+                port:
+                  number: 8080
+          - path: /models
+            pathType: Prefix
+            backend:
+              service:
+                name: models
+                port:
+                  number: 8080
+          - path: /gui
+            pathType: Prefix
+            backend:
+              service:
+                name: gui
+                port:
+                  number: 8080
