@@ -1,1 +1,13 @@
-
+# infra/k8s/services/cortex-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: cortex
+  namespace: sentenial
+spec:
+  type: ClusterIP
+  selector:
+    app: cortex
+  ports:
+    - port: 8080
+      targetPort: 8080
