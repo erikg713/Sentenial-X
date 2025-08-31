@@ -1,42 +1,54 @@
 # analytics/gui_dashboard/widgets/countermeasure_log.py
-class CountermeasureLogWidget:
-    def __init__(self):
-        self.logs = []
 
-    def add_log(self, agent_id: str, action: str, result: str):
-        self.logs.append({"agent_id": agent_id, "action": action, "result": result})
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QTextEdit, QLabel
+from PyQt5.QtCore import QTimer
 
-    def render(self):
-        return self.logs[-10:]  # Show last 10 logs                                  'color': 'white', 'fontWeight': 'bold'},
-                    style_data={'backgroundColor': 'rgb(50, 50, 50)',
-                                'color': 'white'},
-                    style_table={'overflowY': 'auto', 'maxHeight': '400px'}
-                ),
-                dcc.Interval(
-                    id=f"{self.id_prefix}-interval",
-                    interval=5000,  # refresh every 5 seconds
-                    n_intervals=0
-                )
-            ]
-        )
+class CountermeasureLogDashboard(QWidget):
+    """
+    GUI widget to display live countermeasure logs.
+    Tracks automated responses to detected threats.
+    """
+    def __init__(self, parent=None, update_interval=2000):
+        super().__init__(parent)
+        self.setWindowTitle("Countermeasure Log")
+        self.layout = QVBoxLayout(self)
 
-    def register_callbacks(self, app: dash.Dash):
+        self.title_label = QLabel("Live Countermeasure Log")
+        self.layout.addWidget(self.title_label)
+
+        self.log_display = QTextEdit()
+        self.log_display.setReadOnly(True)
+        self.layout.addWidget(self.log_display)
+
+        self.countermeasure_log = []
+
+        # Timer to refresh log display
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.update_log_display)
+        self.timer.start(update_interval)
+
+    def add_countermeasure(self, countermeasure: dict):
         """
-        Register callback to fetch countermeasure logs from API and update table.
+        Add a countermeasure entry to the log.
+        Expected format: { 'action': 'blocked IP', 'source': 'plugin_name', 'target': 'target', 'details': '...' }
         """
+        self.countermeasure_log.append(countermeasure)
+        self.update_log_display()
 
-        @app.callback(
-            Output(f"{self.id_prefix}-table", "data"),
-            Input(f"{self.id_prefix}-interval", "n_intervals")
-        )
-        def update_table(n_intervals):
-            try:
-                response = requests.get(API_ENDPOINTS["countermeasures"])
-                logs = response.json()
-                # Expected format: list of dicts with timestamp, agent_id, threat, action, status
-                df = pd.DataFrame(logs)
-                df = df.sort_values(by="timestamp", ascending=False)  # latest first
-                return df.to_dict("records")
-            except Exception as e:
-                # If API fails, return empty list
-                return []
+    def update_log_display(self):
+        """
+        Refresh the QTextEdit with the latest countermeasure log.
+        """
+        if not self.countermeasure_log:
+            self.log_display.setPlainText("No countermeasures executed yet.")
+            return
+
+        display_text = ""
+        for idx, cm in enumerate(self.countermeasure_log, start=1):
+            display_text += f"{idx}. Action: {cm.get('action', 'Unknown')}\n"
+            display_text += f"   Source: {cm.get('source', 'N/A')}\n"
+            display_text += f"   Target: {cm.get('target', 'N/A')}\n"
+            display_text += f"   Details: {cm.get('details', 'N/A')}\n"
+            display_text += "-"*50 + "\n"
+
+        self.log_display.setPlainText(display_text)
