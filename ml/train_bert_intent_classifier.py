@@ -1,128 +1,157 @@
-# sentenialx/ml/train_bert_intent_classifier.py
-import os
+# ml/train_bert_intent_classifier.py
+
 import torch
-from torch.utils.data import DataLoader, Dataset
-from transformers import BertTokenizer, BertForSequenceClassification, AdamW
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import classification_report
-import numpy as np
-import random
+from torch import nn, optim
+from torch.utils.data import DataLoader
+from transformers import AutoTokenizer, AutoModel
+from tqdm import tqdm
+from typing import List
 
-# ---------------- Hyperparameters ----------------
-MODEL_NAME = "bert-base-uncased"
-OUTPUT_DIR = "./output/bert_intent_classifier"
-BATCH_SIZE = 16
-EPOCHS = 4
-LR = 2e-5
+from libs.ml.pytorch.dataset import TelemetryDataset
+from libs.ml.pytorch.model import TelemetryModel
+from libs.ml.pytorch.trainer import TrainerModule
+from libs.ml.pytorch.utils import get_device, log, compute_classification_metrics
+from libs.ml.pytorch.lora_tuner import LoRATuner
+
+
+# ---------------------------
+# Sample telemetry/log dataset
+# ---------------------------
+texts = [
+    "Agent executed task A",
+    "Telemetry anomaly detected",
+    "Normal telemetry received",
+    "VSSAdmin delete shadows detected",
+    "Process injected with AMSI bypass"
+]
+
+# Labels: 0 = benign, 1 = malicious
+labels = [0, 1, 0, 1, 1]
+
+
+# ---------------------------
+# Hyperparameters
+# ---------------------------
+BASE_MODEL = "bert-base-uncased"
+EMBEDDING_DIM = 128
+NUM_CLASSES = 2
+BATCH_SIZE = 2
+EPOCHS = 3
+LR = 5e-5
 MAX_LEN = 128
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+USE_LORA = True  # <-- enable LoRA fine-tuning
+LORA_R = 4
+LORA_ALPHA = 8
+LORA_DROPOUT = 0.1
+LORA_SAVE_PATH = "models/lora_bert_intent.pt"
 
-os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-# ---------------- Sample Dataset ----------------
-# Replace with your real CVE logs, payloads, HTTP requests, etc.
-samples = [
-    ("User login failed from IP 192.168.1.10", 0),       # normal
-    ("DROP TABLE users; -- SQL Injection", 1),           # sql_injection
-    ("<script>alert('XSS')</script>", 2),               # xss
-    ("File download detected: /tmp/malware.exe", 3),    # malware
-    ("POST /api/upload HTTP/1.1 Content-Length: 1024", 0),
-] * 200  # replicate for demonstration
+# ---------------------------
+# Device
+# ---------------------------
+device = get_device()
+log(f"Using device: {device}")
 
-texts, labels = zip(*samples)
-labels = list(labels)
 
-# ---------------- Train/Test Split ----------------
-train_texts, val_texts, train_labels, val_labels = train_test_split(
-    texts, labels, test_size=0.15, random_state=42
-)
+# ---------------------------
+# Dataset & DataLoader
+# ---------------------------
+dataset = TelemetryDataset(texts, labels, tokenizer_name=BASE_MODEL, max_len=MAX_LEN)
+dataloader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True)
 
-# ---------------- Dataset ----------------
-class ThreatDataset(Dataset):
-    def __init__(self, texts, labels, tokenizer, max_len):
-        self.texts = texts
-        self.labels = labels
-        self.tokenizer = tokenizer
-        self.max_len = max_len
 
-    def __len__(self):
-        return len(self.texts)
+# ---------------------------
+# Model initialization
+# ---------------------------
+if USE_LORA:
+    # Initialize LoRA tuner
+    lora_tuner = LoRATuner(base_model_name=BASE_MODEL, num_labels=NUM_CLASSES, r=LORA_R, alpha=LORA_ALPHA, dropout=LORA_DROPOUT, device=device)
+    model = lora_tuner.model
+    trainer = None  # Training is handled via LoRA tuner
+    log("Initialized LoRA tuner for BERT classifier.")
+else:
+    # Standard full model training
+    model = TelemetryModel(base_model_name=BASE_MODEL, embedding_dim=EMBEDDING_DIM, num_classes=NUM_CLASSES)
+    trainer = TrainerModule(model, device=device)
+    log("Initialized standard BERT classifier.")
 
-    def __getitem__(self, idx):
-        text = str(self.texts[idx])
-        label = self.labels[idx]
-        encoding = self.tokenizer(
-            text,
-            add_special_tokens=True,
-            truncation=True,
-            max_length=self.max_len,
-            padding='max_length',
-            return_tensors='pt'
-        )
-        return {
-            "input_ids": encoding["input_ids"].flatten(),
-            "attention_mask": encoding["attention_mask"].flatten(),
-            "labels": torch.tensor(label, dtype=torch.long)
-        }
 
-# ---------------- Tokenizer & Model ----------------
-tokenizer = BertTokenizer.from_pretrained(MODEL_NAME)
-train_dataset = ThreatDataset(train_texts, train_labels, tokenizer, MAX_LEN)
-val_dataset = ThreatDataset(val_texts, val_labels, tokenizer, MAX_LEN)
+# ---------------------------
+# Training loop
+# ---------------------------
+if USE_LORA:
+    log("Starting LoRA fine-tuning...")
+    lora_tuner.train(texts, labels, batch_size=BATCH_SIZE, epochs=EPOCHS, lr=LR, save_path=LORA_SAVE_PATH)
+    log(f"LoRA fine-tuning completed. Model saved to {LORA_SAVE_PATH}")
+else:
+    log("Starting standard supervised training...")
+    optimizer = optim.AdamW(model.parameters(), lr=LR)
+    criterion = nn.CrossEntropyLoss()
+    model.to(device)
 
-train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
-val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False)
+    for epoch in range(EPOCHS):
+        epoch_loss = 0.0
+        model.train()
+        for batch in tqdm(dataloader, desc=f"Epoch {epoch + 1}/{EPOCHS}"):
+            optimizer.zero_grad()
+            input_ids = batch["input_ids"].to(device)
+            attention_mask = batch["attention_mask"].to(device)
+            labels_tensor = batch["labels"].to(device)
 
-model = BertForSequenceClassification.from_pretrained(MODEL_NAME, num_labels=4)
-model.to(DEVICE)
-optimizer = AdamW(model.parameters(), lr=LR)
+            outputs = model(input_ids, attention_mask, labels=labels_tensor)
+            loss = outputs["loss"]
+            loss.backward()
+            optimizer.step()
+            epoch_loss += loss.item()
+        log(f"Epoch {epoch + 1} average loss: {epoch_loss / len(dataloader):.4f}")
 
-# ---------------- Training Loop ----------------
-for epoch in range(EPOCHS):
-    model.train()
-    total_loss = 0
-    for batch in train_loader:
-        optimizer.zero_grad()
-        input_ids = batch["input_ids"].to(DEVICE)
-        attention_mask = batch["attention_mask"].to(DEVICE)
-        labels = batch["labels"].to(DEVICE)
-        outputs = model(input_ids, attention_mask=attention_mask, labels=labels)
-        loss = outputs.loss
-        total_loss += loss.item()
-        loss.backward()
-        optimizer.step()
-    avg_loss = total_loss / len(train_loader)
-    print(f"Epoch {epoch+1}/{EPOCHS} - Train Loss: {avg_loss:.4f}")
+    # Save standard model
+    torch.save(model.state_dict(), "models/bert_intent_classifier.pt")
+    log("Standard BERT classifier saved to models/bert_intent_classifier.pt")
 
-    # ---------------- Validation ----------------
-    model.eval()
-    preds, true = [], []
-    with torch.no_grad():
-        for batch in val_loader:
-            input_ids = batch["input_ids"].to(DEVICE)
-            attention_mask = batch["attention_mask"].to(DEVICE)
-            labels = batch["labels"].to(DEVICE)
-            outputs = model(input_ids, attention_mask=attention_mask)
-            predictions = torch.argmax(outputs.logits, dim=-1)
-            preds.extend(predictions.cpu().numpy())
-            true.extend(labels.cpu().numpy())
-    print(classification_report(true, preds, digits=4))
 
-# ---------------- Save Model ----------------
-model.save_pretrained(OUTPUT_DIR)
-tokenizer.save_pretrained(OUTPUT_DIR)
-print(f"BERT intent classifier saved to {OUTPUT_DIR}")    logging_dir="./logs",
-    save_strategy="epoch",
-)
+# ---------------------------
+# Evaluation
+# ---------------------------
+log("Evaluating model...")
+all_preds, all_labels = [], []
+model.eval()
+with torch.no_grad():
+    for batch in dataloader:
+        input_ids = batch["input_ids"].to(device)
+        attention_mask = batch["attention_mask"].to(device)
+        labels_tensor = batch["labels"].to(device)
 
-trainer = Trainer(
-    model=model,
-    args=args,
-    train_dataset=dataset["train"],
-    eval_dataset=dataset["test"],
-    tokenizer=tokenizer,
-)
+        if USE_LORA:
+            logits = lora_tuner.model(input_ids, attention_mask, labels=None)
+        else:
+            logits = model(input_ids, attention_mask, labels=None)
+        preds = torch.argmax(logits, dim=-1)
+        all_preds.extend(preds.cpu().numpy())
+        all_labels.extend(labels_tensor.cpu().numpy())
 
-trainer.train()
-model.save_pretrained("bert-threat-intent")
-tokenizer.save_pretrained("bert-threat-intent")
+metrics = compute_classification_metrics(all_preds, all_labels)
+log(f"Evaluation metrics: {metrics}")
+
+
+# ---------------------------
+# Inference example
+# ---------------------------
+new_texts = ["Suspicious AMSI bypass detected", "Routine telemetry event"]
+model.eval()
+predictions = []
+
+tokenizer = AutoTokenizer.from_pretrained(BASE_MODEL)
+with torch.no_grad():
+    for text in new_texts:
+        encoded = tokenizer(text, truncation=True, padding="max_length", max_length=MAX_LEN, return_tensors="pt")
+        input_ids = encoded["input_ids"].to(device)
+        attention_mask = encoded["attention_mask"].to(device)
+        if USE_LORA:
+            logits = lora_tuner.model(input_ids, attention_mask, labels=None)
+        else:
+            logits = model(input_ids, attention_mask, labels=None)
+        preds = torch.argmax(logits, dim=-1)
+        predictions.append(preds.item())
+
+log(f"Inference predictions: {predictions}")
