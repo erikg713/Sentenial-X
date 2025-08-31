@@ -1,137 +1,112 @@
-"""
-core/semantic_analyzer/models/embedding.py
+# core/semantic_analyzer/models/embedding.py
 
-Embedding model interface for Sentenial-X.
-Supports OpenAI embeddings, HuggingFace transformers, and deterministic fallback.
-Includes caching integration for performance optimization.
-"""
+import numpy as np
+from typing import List, Union, Optional
+from transformers import AutoTokenizer, AutoModel
+import torch
+import onnxruntime as ort
 
-import hashlib
-import logging
-from typing import List, Optional, Dict, Any
-
-from core.semantic_analyzer.models.cache import EmbeddingCache
-
-logger = logging.getLogger(__name__)
-
-
-class BaseEmbedder:
-    """Abstract base class for all embedding models."""
-
-    def embed(self, text: str) -> List[float]:
-        raise NotImplementedError("Embed method must be implemented.")
-
-    def embed_batch(self, texts: List[str]) -> List[List[float]]:
-        return [self.embed(t) for t in texts]
-
-
-class HashEmbedder(BaseEmbedder):
-    """
-    Deterministic, lightweight fallback embedding generator.
-    Uses SHA256 hashing to produce fixed-length pseudo-embeddings.
-    """
-
-    def __init__(self, dim: int = 128):
-        self.dim = dim
-
-    def embed(self, text: str) -> List[float]:
-        digest = hashlib.sha256(text.encode("utf-8")).digest()
-        vector = [b / 255.0 for b in digest[: self.dim]]
-        # Pad to required dimension if digest is shorter
-        while len(vector) < self.dim:
-            vector.append(0.0)
-        return vector
-
-
-class OpenAIEmbedder(BaseEmbedder):
-    """
-    OpenAI Embedding Model wrapper.
-    Requires OPENAI_API_KEY in environment.
-    """
-
-    def __init__(self, model: str = "text-embedding-ada-002"):
-        try:
-            from openai import OpenAI
-        except ImportError:
-            raise ImportError("Please install openai: pip install openai")
-
-        import os
-
-        api_key = os.getenv("OPENAI_API_KEY")
-        if not api_key:
-            raise ValueError("OPENAI_API_KEY not set in environment")
-
-        self.client = OpenAI(api_key=api_key)
-        self.model = model
-
-    def embed(self, text: str) -> List[float]:
-        try:
-            response = self.client.embeddings.create(model=self.model, input=text)
-            return response.data[0].embedding
-        except Exception as e:
-            logger.error(f"OpenAI embedding failed: {e}")
-            return []
-
-
-class HuggingFaceEmbedder(BaseEmbedder):
-    """
-    HuggingFace Transformers embedding model.
-    """
-
-    def __init__(self, model_name: str = "sentence-transformers/all-MiniLM-L6-v2"):
-        try:
-            from sentence_transformers import SentenceTransformer
-        except ImportError:
-            raise ImportError("Please install sentence-transformers: pip install sentence-transformers")
-
-        self.model = SentenceTransformer(model_name)
-
-    def embed(self, text: str) -> List[float]:
-        try:
-            embedding = self.model.encode(text, normalize_embeddings=True)
-            return embedding.tolist()
-        except Exception as e:
-            logger.error(f"HuggingFace embedding failed: {e}")
-            return []
+from core.semantic_analyzer.models.utils import normalize_vector, batchify
+from core.semantic_analyzer.models.registry import ModelRegistry
 
 
 class EmbeddingModel:
     """
-    Unified embedding interface with caching support.
-    Falls back gracefully if preferred backend fails.
+    Real embedding model for semantic analysis.
+    Supports:
+    - Hugging Face Transformers
+    - ONNX Runtime models
+    - Batch processing and normalization
     """
 
     def __init__(
         self,
-        backend: str = "huggingface",
-        cache: Optional[EmbeddingCache] = None,
-        **kwargs: Any,
+        model_name: str = "distilbert-base-uncased",
+        backend: str = "transformer",  # "transformer" or "onnx"
+        device: Optional[str] = None,
+        normalize: bool = True,
+        batch_size: int = 32,
     ):
-        self.cache = cache or EmbeddingCache()
-        self.backend_name = backend.lower()
+        self.model_name = model_name
+        self.backend = backend
+        self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
+        self.normalize = normalize
+        self.batch_size = batch_size
 
-        if self.backend_name == "openai":
-            self.model = OpenAIEmbedder(**kwargs)
-        elif self.backend_name == "huggingface":
-            self.model = HuggingFaceEmbedder(**kwargs)
+        self.model = None
+        self.tokenizer = None
+        self.session = None
+
+        # Register model
+        ModelRegistry.register(self.model_name, lambda: self)
+
+        # Initialize model
+        self.load_model()
+
+    def load_model(self, onnx_path: Optional[str] = None):
+        """
+        Load the real model.
+        - If backend == 'transformer', load HuggingFace model.
+        - If backend == 'onnx', load ONNX Runtime session.
+        """
+        if self.backend == "transformer":
+            self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
+            self.model = AutoModel.from_pretrained(self.model_name)
+            self.model.to(self.device)
+            self.model.eval()
+        elif self.backend == "onnx":
+            if onnx_path is None:
+                raise ValueError("onnx_path must be provided for ONNX backend")
+            self.session = ort.InferenceSession(onnx_path)
         else:
-            logger.warning("Using fallback HashEmbedder (not recommended for semantic tasks).")
-            self.model = HashEmbedder()
+            raise ValueError(f"Unknown backend: {self.backend}")
 
-    def embed(self, text: str) -> List[float]:
-        """Generate embedding for a single string with caching."""
-        cached = self.cache.get(text)
-        if cached is not None:
-            return cached
+    def encode(self, texts: List[str]) -> np.ndarray:
+        """
+        Encode a list of texts into embeddings.
+        """
+        embeddings_list = []
 
-        vector = self.model.embed(text)
-        if vector:
-            self.cache.set(text, vector)
-        return vector
+        if self.backend == "transformer":
+            for batch in batchify(texts, self.batch_size):
+                encoded = self.tokenizer(
+                    batch,
+                    padding=True,
+                    truncation=True,
+                    return_tensors="pt",
+                    max_length=512,
+                ).to(self.device)
 
-    def embed_batch(self, texts: List[str]) -> List[List[float]]:
-        """Generate embeddings for a batch of texts with caching."""
-        results = []
-        for t in texts:
-            results.append(self.embed(t))
-        return results
+                with torch.no_grad():
+                    outputs = self.model(**encoded)
+                    cls_embeddings = outputs.last_hidden_state[:, 0, :].cpu().numpy()
+
+                if self.normalize:
+                    cls_embeddings = np.array([normalize_vector(vec) for vec in cls_embeddings])
+
+                embeddings_list.append(cls_embeddings)
+
+        elif self.backend == "onnx":
+            for batch in batchify(texts, self.batch_size):
+                inputs = self.tokenizer(batch, padding=True, truncation=True, return_tensors="np")
+                ort_inputs = {k: v.astype(np.int64) for k, v in inputs.items()}
+                ort_outs = self.session.run(None, ort_inputs)
+                batch_embeddings = ort_outs[0]  # Assume first output is embeddings
+                if self.normalize:
+                    batch_embeddings = np.array([normalize_vector(vec) for vec in batch_embeddings])
+                embeddings_list.append(batch_embeddings)
+
+        return np.vstack(embeddings_list)
+
+    def predict(self, texts: Union[str, List[str]]) -> np.ndarray:
+        if isinstance(texts, str):
+            texts = [texts]
+        return self.encode(texts)
+
+
+# Example usage
+if __name__ == "__main__":
+    em = EmbeddingModel(model_name="distilbert-base-uncased", backend="transformer")
+    sample_texts = ["Sentenial-X is running", "Real embeddings now"]
+    vectors = em.predict(sample_texts)
+    print("Embeddings shape:", vectors.shape)
