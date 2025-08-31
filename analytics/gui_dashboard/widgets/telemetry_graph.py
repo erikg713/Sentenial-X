@@ -1,48 +1,91 @@
 # analytics/gui_dashboard/widgets/telemetry_graph.py
-class TelemetryGraphWidget:
-    def __init__(self):
-        self.data = []
 
-    def add_data(self, telemetry: dict):
-        self.data.append(telemetry)
+import sys
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel
+from PyQt5.QtCore import QTimer
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.figure import Figure
+from typing import Dict, List
+from core.cortex.orchestrator import AgentOrchestrator  # Your orchestrator module
 
-    def render(self):
-        # Simplified rendering, replace with charting in real frontend
-        return self.data[-20:]  # Last 20 telemetry points        )
 
-    def register_callbacks(self, app: dash.Dash):
+class TelemetryGraphWidget(QWidget):
+    """
+    GUI widget to visualize real-time telemetry from agents.
+    """
+
+    def __init__(self, orchestrator: AgentOrchestrator, update_interval_ms: int = 1000, parent=None):
+        super().__init__(parent)
+        self.orchestrator = orchestrator
+        self.update_interval_ms = update_interval_ms
+
+        # Layout
+        self.layout = QVBoxLayout()
+        self.title_label = QLabel("Telemetry Metrics")
+        self.layout.addWidget(self.title_label)
+
+        # Matplotlib figure
+        self.figure = Figure(figsize=(5, 3))
+        self.canvas = FigureCanvas(self.figure)
+        self.ax = self.figure.add_subplot(111)
+        self.ax.set_title("Telemetry over time")
+        self.ax.set_xlabel("Time")
+        self.ax.set_ylabel("Value")
+        self.layout.addWidget(self.canvas)
+
+        self.setLayout(self.layout)
+
+        # Data buffer
+        self.data_buffer: Dict[str, List[float]] = {}
+
+        # Timer for updates
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.update_graph)
+        self.timer.start(self.update_interval_ms)
+
+    def fetch_telemetry(self) -> Dict[str, float]:
         """
-        Register callback to fetch telemetry data and update graph.
+        Retrieve latest telemetry from all agents.
+        Returns a dictionary of metric_name: value
         """
+        telemetry_data = {}
+        for agent_id, agent_obj in self.orchestrator.list_agents().items():
+            metrics = agent_obj.get_telemetry()
+            for key, value in metrics.items():
+                telemetry_data[f"{agent_id}-{key}"] = value
+        return telemetry_data
 
-        @app.callback(
-            Output(f"{self.id_prefix}-graph", "figure"),
-            Input(f"{self.id_prefix}-interval", "n_intervals")
-        )
-        def update_graph(n_intervals):
-            try:
-                response = requests.get(API_ENDPOINTS["telemetry"])
-                data = response.json()
-                # Expected format: list of dicts with agent_id, timestamp, metric_name, value
-                df = pd.DataFrame(data)
-                fig = go.Figure()
-                if not df.empty:
-                    for agent_id in df['agent_id'].unique():
-                        agent_data = df[df['agent_id'] == agent_id]
-                        fig.add_trace(go.Scatter(
-                            x=pd.to_datetime(agent_data['timestamp']),
-                            y=agent_data['value'],
-                            mode='lines+markers',
-                            name=f"{agent_id} - {agent_data['metric_name'].iloc[0]}"
-                        ))
-                fig.update_layout(
-                    template="plotly_dark",
-                    margin=dict(l=10, r=10, t=30, b=10),
-                    xaxis_title="Time",
-                    yaxis_title="Metric Value",
-                    legend_title="Agents/Metrics"
-                )
-                return fig
-            except Exception as e:
-                # Return empty figure on error
-                return go.Figure()
+    def update_graph(self):
+        """
+        Pull telemetry and update the matplotlib graph.
+        """
+        telemetry = self.fetch_telemetry()
+        for key, value in telemetry.items():
+            if key not in self.data_buffer:
+                self.data_buffer[key] = []
+            self.data_buffer[key].append(value)
+            # Keep only last 100 data points
+            if len(self.data_buffer[key]) > 100:
+                self.data_buffer[key] = self.data_buffer[key][-100:]
+
+        self.ax.clear()
+        for key, values in self.data_buffer.items():
+            self.ax.plot(values, label=key)
+
+        self.ax.set_title("Telemetry over time")
+        self.ax.set_xlabel("Time")
+        self.ax.set_ylabel("Value")
+        self.ax.legend(loc="upper left", fontsize=8)
+        self.canvas.draw()
+
+
+# Example usage
+if __name__ == "__main__":
+    from PyQt5.QtWidgets import QApplication
+    from core.cortex.orchestrator import AgentOrchestrator
+
+    app = QApplication(sys.argv)
+    orchestrator = AgentOrchestrator()
+    widget = TelemetryGraphWidget(orchestrator)
+    widget.show()
+    sys.exit(app.exec_())
