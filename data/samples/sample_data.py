@@ -1,3 +1,0 @@
-192.168.1.10,SQL Injection,High
-192.168.1.42,Port Scan,Low
-192.168.1.88,Brute Force Login,Critical

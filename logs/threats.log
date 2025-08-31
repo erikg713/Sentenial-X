@@ -1,6 +1,0 @@
-threat_handler = RotatingFileHandler(
-    self.threat_log_path,
-    maxBytes=self.max_bytes,
-    backupCount=self.backup_count,
-    encoding="utf-8"
-)
