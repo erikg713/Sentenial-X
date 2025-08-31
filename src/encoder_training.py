@@ -1,22 +1,18 @@
 # src/encoder_training.py
 
 import os
+from typing import List, Optional
 import torch
-from torch.utils.data import Dataset, DataLoader
-from torch import nn, optim
-from transformers import AutoTokenizer, AutoModel
+from torch import nn
+from torch.utils.data import Dataset
+from transformers import AutoTokenizer, AutoModel, Trainer, TrainingArguments
 from sklearn.model_selection import train_test_split
-import numpy as np
-from tqdm import tqdm
-from typing import List, Tuple, Optional
 
-
+# ---------------------------
+# Dataset
+# ---------------------------
 class TelemetryDataset(Dataset):
-    """
-    Custom dataset for telemetry/log text data and optional labels.
-    """
-
-    def __init__(self, texts: List[str], labels: Optional[List[int]] = None, tokenizer_name: str = "distilbert-base-uncased", max_len: int = 512):
+    def __init__(self, texts: List[str], labels: Optional[List[int]] = None, tokenizer_name: str = "bert-base-uncased", max_len: int = 128):
         self.texts = texts
         self.labels = labels
         self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
@@ -26,9 +22,8 @@ class TelemetryDataset(Dataset):
         return len(self.texts)
 
     def __getitem__(self, idx):
-        text = str(self.texts[idx])
         encoded = self.tokenizer(
-            text,
+            self.texts[idx],
             truncation=True,
             padding="max_length",
             max_length=self.max_len,
@@ -36,120 +31,98 @@ class TelemetryDataset(Dataset):
         )
         item = {key: val.squeeze(0) for key, val in encoded.items()}
         if self.labels:
-            item["label"] = torch.tensor(self.labels[idx], dtype=torch.long)
+            item["labels"] = torch.tensor(self.labels[idx], dtype=torch.long)
         return item
 
-
+# ---------------------------
+# Transformer Encoder
+# ---------------------------
 class TransformerEncoder(nn.Module):
-    """
-    Transformer-based encoder for generating embeddings.
-    """
-
-    def __init__(self, model_name: str = "distilbert-base-uncased", embedding_dim: int = 128):
+    def __init__(self, base_model_name="bert-base-uncased", embedding_dim=256):
         super().__init__()
-        self.transformer = AutoModel.from_pretrained(model_name)
-        self.embedding_dim = embedding_dim
-        self.projection = nn.Linear(self.transformer.config.hidden_size, embedding_dim)
+        self.base = AutoModel.from_pretrained(base_model_name)
+        self.proj = nn.Linear(self.base.config.hidden_size, embedding_dim)
 
-    def forward(self, input_ids, attention_mask):
-        outputs = self.transformer(input_ids=input_ids, attention_mask=attention_mask)
-        cls_emb = outputs.last_hidden_state[:, 0, :]  # CLS token
-        projected = self.projection(cls_emb)
-        return projected
+    def forward(self, input_ids, attention_mask, labels=None):
+        outputs = self.base(input_ids=input_ids, attention_mask=attention_mask).last_hidden_state
+        cls = outputs[:, 0]  # CLS token
+        embeddings = self.proj(cls)
+        return embeddings
 
-
+# ---------------------------
+# Training function
+# ---------------------------
 def train_encoder(
     texts: List[str],
     labels: Optional[List[int]] = None,
-    model_name: str = "distilbert-base-uncased",
-    embedding_dim: int = 128,
+    model_name: str = "bert-base-uncased",
+    embedding_dim: int = 256,
     batch_size: int = 16,
     epochs: int = 3,
-    lr: float = 1e-4,
-    device: Optional[str] = None,
-    save_path: Optional[str] = None
+    lr: float = 5e-5,
+    save_path: str = "models/encoder.pt"
 ):
-    device = device or ("cuda" if torch.cuda.is_available() else "cpu")
-    dataset = TelemetryDataset(texts, labels, tokenizer_name=model_name)
-    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+    # Split dataset
+    train_texts, val_texts, train_labels, val_labels = train_test_split(texts, labels, test_size=0.1, random_state=42) if labels else (texts, texts, labels, labels)
+    
+    train_dataset = TelemetryDataset(train_texts, train_labels, tokenizer_name=model_name)
+    val_dataset = TelemetryDataset(val_texts, val_labels, tokenizer_name=model_name)
+    
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    model = TransformerEncoder(base_model_name=model_name, embedding_dim=embedding_dim).to(device)
 
-    model = TransformerEncoder(model_name, embedding_dim).to(device)
-    optimizer = optim.Adam(model.parameters(), lr=lr)
-    criterion = nn.CrossEntropyLoss() if labels else nn.MSELoss()
+    # HuggingFace Trainer boilerplate
+    class HFWrapper(torch.nn.Module):
+        def __init__(self, encoder):
+            super().__init__()
+            self.encoder = encoder
+            self.classifier = nn.Linear(embedding_dim, 2) if labels else None
 
-    model.train()
-    for epoch in range(epochs):
-        epoch_loss = 0.0
-        for batch in tqdm(dataloader, desc=f"Epoch {epoch + 1}/{epochs}"):
-            input_ids = batch["input_ids"].to(device)
-            attention_mask = batch["attention_mask"].to(device)
-            optimizer.zero_grad()
+        def forward(self, input_ids=None, attention_mask=None, labels=None):
+            emb = self.encoder(input_ids, attention_mask)
+            if labels is not None:
+                logits = self.classifier(emb)
+                loss_fn = nn.CrossEntropyLoss()
+                loss = loss_fn(logits, labels)
+                return {"loss": loss, "logits": logits}
+            return {"embeddings": emb}
 
-            embeddings = model(input_ids, attention_mask)
+    wrapped_model = HFWrapper(model)
 
-            if labels:
-                labels_tensor = batch["label"].to(device)
-                loss = criterion(embeddings, labels_tensor)
-            else:
-                # Self-supervised: try to reconstruct or use contrastive loss
-                loss = embeddings.norm(p=2, dim=1).mean()  # dummy L2 loss
+    training_args = TrainingArguments(
+        output_dir="./training_output",
+        per_device_train_batch_size=batch_size,
+        per_device_eval_batch_size=batch_size,
+        num_train_epochs=epochs,
+        learning_rate=lr,
+        logging_steps=10,
+        save_strategy="epoch",
+        evaluation_strategy="epoch" if labels else "no",
+        report_to="none"
+    )
 
-            loss.backward()
-            optimizer.step()
-            epoch_loss += loss.item()
+    trainer = Trainer(
+        model=wrapped_model,
+        args=training_args,
+        train_dataset=train_dataset,
+        eval_dataset=val_dataset if labels else None
+    )
 
-        print(f"Epoch {epoch+1} Loss: {epoch_loss / len(dataloader):.4f}")
+    trainer.train()
 
-    if save_path:
-        os.makedirs(os.path.dirname(save_path), exist_ok=True)
-        torch.save(model.state_dict(), save_path)
-        print(f"Model saved to {save_path}")
-
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    torch.save(model.state_dict(), save_path)
+    print(f"Encoder saved to {save_path}")
     return model
 
-
-def evaluate_encoder(model: TransformerEncoder, texts: List[str], device: Optional[str] = None) -> np.ndarray:
-    device = device or ("cuda" if torch.cuda.is_available() else "cpu")
-    tokenizer = AutoTokenizer.from_pretrained(model.transformer.name_or_path)
-    model.to(device)
-    model.eval()
-    embeddings = []
-
-    with torch.no_grad():
-        for text in texts:
-            encoded = tokenizer(text, truncation=True, padding="max_length", max_length=512, return_tensors="pt")
-            input_ids = encoded["input_ids"].to(device)
-            attention_mask = encoded["attention_mask"].to(device)
-            emb = model(input_ids, attention_mask)
-            embeddings.append(emb.cpu().numpy())
-
-    return np.vstack(embeddings)
-
-
+# ---------------------------
 # Example usage
+# ---------------------------
 if __name__ == "__main__":
-    sample_texts = ["Agent executed task A", "Telemetry event received", "Anomaly detected"]
-    model = train_encoder(sample_texts, embedding_dim=64, epochs=1, save_path="models/telemetry_encoder.pt")
-    emb_vectors = evaluate_encoder(model, ["New telemetry log"])
-    print("Embedding shape:", emb_vectors.shape)
-from transformers import AutoModel, AutoTokenizer, Trainer, TrainingArguments
-from torch import nn
-import torch
-
-tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
-model = AutoModel.from_pretrained("bert-base-uncased")
-
-class HTTPEncoder(nn.Module):
-    def __init__(self, base):
-        super().__init__()
-        self.base = base
-        self.proj = nn.Linear(base.config.hidden_size, 256)
-    def forward(self, input_ids, attention_mask):
-        outputs = self.base(input_ids, attention_mask=attention_mask).last_hidden_state
-        cls = outputs[:,0]
-        return self.proj(cls)
-
-# Dataset loading & mapping to input_ids/labels
-# Train to classify malicious vs. benign sessions
-
-# ... Trainer boilerplate ...
+    sample_texts = [
+        "Agent executed task A",
+        "Telemetry event received",
+        "Malicious activity detected"
+    ]
+    sample_labels = [0, 0, 1]  # 0=benign, 1=malicious
+    model = train_encoder(sample_texts, labels=sample_labels, embedding_dim=128, epochs=1)
