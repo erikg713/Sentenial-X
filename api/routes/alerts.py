@@ -1,12 +1,16 @@
-from flask import Blueprint, request, jsonify
-from api.utils.siem import push_to_siem
-from api.utils.risk_score import calculate_risk
+from fastapi import APIRouter, Depends, HTTPException
+from ..models import AlertRequest, AlertResponse
+from ..deps import secure_dep
 
-alerts_bp = Blueprint('alerts', __name__)
+router = APIRouter(prefix="/alerts", tags=["alerts"])
 
-@alerts_bp.route('/alert', methods=['POST'])
-def create_alert():
-    data = request.json
-    risk = calculate_risk(data)
-    enriched = push_to_siem(data, risk)
-    return jsonify({"status": "success", "risk_score": risk, "siem_id": enriched["id"]})
+@router.post("/dispatch", response_model=AlertResponse)
+async def dispatch(req: AlertRequest, _=Depends(secure_dep)):
+    try:
+        from cli.alerts import AlertDispatcher
+    except Exception as e:
+        raise HTTPException(500, f"Module import failed: {e}")
+
+    dispatcher = AlertDispatcher()
+    result = await dispatcher.dispatch(alert_type=req.type, severity=req.severity, payload=req.payload or {})
+    return AlertResponse(**result)
