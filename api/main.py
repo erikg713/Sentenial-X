@@ -1,25 +1,55 @@
-import os
+# api/main.py
+"""
+Sentenial-X API Main Entrypoint
+Production-ready FastAPI application
+"""
+
 from fastapi import FastAPI
-from . import app as package_app
-from .middleware import setup_middleware
-from .errors import setup_exception_handlers
-from .routes import include_routes
+from fastapi.middleware.cors import CORSMiddleware
 
-# Expose a single FastAPI app
-app: FastAPI = package_app
+from api.routes import telemetry, orchestrator, cortex, wormgpt, exploits
+from api.utils.logger import init_logger
 
-# Configure middleware, errors, and routes
-setup_middleware(app)
-setup_exception_handlers(app)
-include_routes(app)
+# Initialize logger
+logger = init_logger("sentenialx_api")
 
-# Optional root message
-@app.get("/", tags=["meta"])
+# Initialize FastAPI app
+app = FastAPI(
+    title="Sentenial-X API",
+    description="Production-ready API layer for the Sentenial-X cybersecurity platform",
+    version="1.0.0",
+)
+
+# Enable CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # In production, restrict to frontend domains
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Register API routes
+app.include_router(telemetry.router, prefix="/api/telemetry", tags=["Telemetry"])
+app.include_router(orchestrator.router, prefix="/api/orchestrator", tags=["Orchestrator"])
+app.include_router(cortex.router, prefix="/api/cortex", tags=["Cortex"])
+app.include_router(wormgpt.router, prefix="/api/wormgpt", tags=["WormGPT"])
+app.include_router(exploits.router, prefix="/api/exploits", tags=["Exploits"])
+
+# Root endpoint for health checks
+@app.get("/", tags=["Health"])
 async def root():
-    return {
-        "service": "Sentenial-X API",
-        "version": app.version,
-        "docs": "/docs",
-        "openapi": "/openapi.json",
-        "env": os.getenv("ENV", "dev"),
-    }
+    """
+    Health check endpoint
+    """
+    logger.info("Health check requested")
+    return {"status": "Sentenial-X API is running 🚀"}
+
+# Optional startup/shutdown events
+@app.on_event("startup")
+async def startup_event():
+    logger.info("Sentenial-X API starting up...")
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    logger.info("Sentenial-X API shutting down...")
