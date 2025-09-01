@@ -5,7 +5,22 @@ from fastapi.responses import JSONResponse
 from typing import Dict, Any, List
 import asyncio
 import logging
+from fastapi import APIRouter, Depends, HTTPException
+from ..models import OrchestratorRequest, OrchestratorResponse
+from ..deps import secure_dep
 
+router = APIRouter(prefix="/orchestrator", tags=["orchestrator"])
+
+@router.post("/execute", response_model=OrchestratorResponse)
+async def execute(req: OrchestratorRequest, _=Depends(secure_dep)):
+    try:
+        from cli.orchestrator import Orchestrator
+    except Exception as e:
+        raise HTTPException(500, f"Module import failed: {e}")
+
+    orch = Orchestrator()
+    result = await orch.execute(action=req.action, params=req.params)
+    return OrchestratorResponse(action=req.action, status=result.get("status", "ok"), result=result)
 # Import orchestrator services
 from orchestrator.core_manager import CoreOrchestrator
 from orchestrator.job_manager import JobManager
