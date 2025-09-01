@@ -1,61 +1,63 @@
-#!/usr/bin/env python3
 """
 cli/wormgpt.py
 
-WormGPT-style adversarial AI prompt detector for Sentenial-X.
-Designed for CLI usage via sentenial_cli_full.py.
+Sentenial-X WormGPT Detector Module - analyzes adversarial AI inputs
+and generates countermeasures.
 """
 
 import asyncio
+import time
 import json
-from datetime import datetime
-from memory import write_command  # adjust import to your actual memory/logging module
-from logger import log_event  # optional logging helper
-from wormgpt_core import analyze_prompt  # your core AI detection logic
+from cli.memory_adapter import get_adapter
+from cli.logger import default_logger
 
-async def run_wormgpt(prompt: str, temperature: float = 0.7) -> dict:
-    """
-    Run adversarial prompt detection and generate countermeasures.
-    Args:
-        prompt (str): The input text to analyze.
-        temperature (float): Randomness factor for AI detection.
-    Returns:
-        dict: Detection results including risk, findings, countermeasures, timestamp.
-    """
-    # Ensure basic validation
-    if not prompt or not isinstance(prompt, str):
-        raise ValueError("Prompt must be a non-empty string.")
+# Mock detection patterns for demonstration (replace with real ML/heuristics)
+MALICIOUS_PATTERNS = [
+    "bypass", "token", "password", "admin", "exfiltrate", "unauthorized", "SSO"
+]
 
-    # Call your detection engine
-    try:
-        results = await analyze_prompt(prompt, temperature=temperature)
-    except Exception as e:
-        results = {"error": str(e), "action": "wormgpt-detector"}
+COUNTERMEASURES = {
+    "sanitize_prompt": "Remove sensitive info from input",
+    "deny_and_alert": "Block request and alert operator",
+    "quarantine_session": "Quarantine user/session for review"
+}
 
-    # Construct full result
-    output = {
-        "action": "wormgpt-detector",
-        "prompt_risk": results.get("risk", "unknown"),
-        "detections": results.get("detections", []),
-        "countermeasures": results.get("countermeasures", []),
-        "temperature": temperature,
-        "timestamp": datetime.utcnow().isoformat() + "Z",
-    }
 
-    # Persist to memory/log
-    try:
-        write_command(action="wormgpt-detector", params={"prompt": prompt, "temperature": temperature}, result=output)
-    except Exception as e:
-        log_event(f"Failed to write WormGPT results to memory: {e}")
+class WormGPT:
+    def __init__(self):
+        self.mem = get_adapter()
+        self.logger = default_logger
 
-    return output
+    async def detect(self, prompt: str, temperature: float = 0.7) -> dict:
+        """
+        Analyze adversarial AI input and return detection & countermeasures.
 
-# CLI handler for sentenial_cli_full.py
-async def handle_wormgpt(args):
-    """
-    Handler for CLI subparser: wormgpt-detector
-    Example usage:
-        ./sentenial_cli_full.py wormgpt-detector -p "example prompt" -t 0.8
-    """
-    result = await run_wormgpt(prompt=args.prompt, temperature=args.temperature)
-    print(json.dumps(result, indent=2))
+        :param prompt: User or AI-generated input text
+        :param temperature: randomness/exploration factor (0.0-1.0)
+        :return: dict with action, prompt risk, detections, countermeasures
+        """
+        self.logger.info(f"Running WormGPT detection on prompt: '{prompt}' with temp {temperature}")
+
+        await asyncio.sleep(0.1 + temperature * 0.2)  # simulate async processing
+
+        # Simple heuristic detection: check for keywords
+        detected = [p for p in MALICIOUS_PATTERNS if p.lower() in prompt.lower()]
+        risk_level = "high" if detected else "low"
+
+        response = {
+            "action": "wormgpt-detector",
+            "prompt": prompt,
+            "prompt_risk": risk_level,
+            "detections": detected,
+            "countermeasures": list(COUNTERMEASURES.keys()) if detected else [],
+            "temperature": temperature,
+            "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        }
+
+        # Log to memory
+        await self.mem.log_command(response)
+
+        # Also log to standard logger
+        self.logger.debug(f"WormGPT detection result: {json.dumps(response, indent=2)}")
+
+        return response
