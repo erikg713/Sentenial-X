@@ -1,157 +1,161 @@
 #!/usr/bin/env python3
+"""
+cli/sentenial_cli.py
+
+Sentenial-X CLI - Production-ready, fully async operator interface.
+
+Modules integrated:
+- wormgpt: adversarial AI detection
+- cortex: NLP threat analysis
+- alerts: alert dispatcher
+- orchestrator: central action executor
+- telemetry: live telemetry streaming
+- memory_adapter: logging and persistence
+
+Usage:
+./sentenial_cli.py <command> [options]
+"""
+
 import argparse
-import logging
-import sys
 import asyncio
-from datetime import datetime
+import json
+import sys
+from cli.wormgpt import WormGPT
+from cli.cortex import Cortex
+from cli.alerts import AlertDispatcher
+from cli.orchestrator import get_orchestrator
+from cli.telemetry import Telemetry
+from cli.memory_adapter import get_adapter
+from cli.logger import default_logger
 
-from sentenial_core import (
-    blind_spot_tracker,
-    wormgpt_detector,
-    cortex_analyzer,
-    orchestrator,
-    telemetry,
-    alert_dispatcher,
-    threat_simulator
-)
-from memory import enqueue_command
-from config import AGENT_ID
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='[%(asctime)s] %(levelname)s - %(message)s',
-    handlers=[logging.StreamHandler(sys.stdout)]
-)
+# ------------------------------
+# Async Command Handlers
+# ------------------------------
+async def handle_wormgpt(args):
+    wg = WormGPT()
+    res = await wg.analyze(prompt=args.prompt, temperature=args.temperature)
+    await get_adapter().log_command("wormgpt-detector", {"prompt": args.prompt, "temperature": args.temperature}, res)
+    print(json.dumps(res, indent=2))
 
-# ---- Command Handlers ---- #
 
-async def run_wormgpt_detector(args):
-    logging.info("Running WormGPT Detector / Counterstrike...")
-    results = wormgpt_detector.analyze(prompt=args.prompt, temperature=args.temperature)
-    print("\n[ WormGPT Detector Results ]")
-    for line in results:
-        print(f"- {line}")
-    await enqueue_command(
-        AGENT_ID,
-        f"WormGPT Detector analyzed: {args.prompt[:60]}...",
-        meta={"type": "wormgpt_detector", "results": results, "timestamp": datetime.utcnow().isoformat()}
-    )
+async def handle_cortex(args):
+    cortex = Cortex()
+    res = await cortex.analyze(source=args.source, filter_expr=args.filter)
+    await get_adapter().log_command("cortex", {"source": args.source, "filter": args.filter}, res)
+    print(json.dumps(res, indent=2))
 
-async def run_blind_spot_tracker(args):
-    logging.info("Running Blind Spot Tracker...")
-    findings = blind_spot_tracker.scan_blind_spots()
-    print("\n[ Blind Spot Tracker Results ]")
-    for issue in findings:
-        print(f"- {issue}")
-    await enqueue_command(
-        AGENT_ID,
-        "Blind Spot Tracker run",
-        meta={"type": "blindspot_scan", "findings": findings, "timestamp": datetime.utcnow().isoformat()}
-    )
 
-async def run_cortex_analysis(args):
-    logging.info("Running Cortex NLP Threat Analysis...")
-    results = cortex_analyzer.analyze_logs(args.source, filter=args.filter)
-    print("\n[ Cortex Analysis Results ]")
-    for item in results:
-        print(f"- {item}")
-    await enqueue_command(
-        AGENT_ID,
-        f"Cortex analysis on {args.source}",
-        meta={"type": "cortex_analysis", "results": results, "timestamp": datetime.utcnow().isoformat()}
-    )
+async def handle_alert(args):
+    dispatcher = AlertDispatcher()
+    res = await dispatcher.dispatch(alert_type=args.type, severity=args.severity)
+    await get_adapter().log_command("alert", {"type": args.type, "severity": args.severity}, res)
+    print(json.dumps(res, indent=2))
 
-async def orchestrator_command(args):
-    logging.info(f"Running orchestrator command: {args.action}")
-    result = orchestrator.execute(args.action, params=args.params or {})
-    print("\n[ Orchestrator Result ]")
-    print(result)
-    await enqueue_command(
-        AGENT_ID,
-        f"Orchestrator executed {args.action}",
-        meta={"type": "orchestrator", "result": result, "timestamp": datetime.utcnow().isoformat()}
-    )
 
-async def stream_telemetry(args):
-    logging.info("Starting real-time telemetry streaming...")
-    async for event in telemetry.stream_events(source=args.source, filter=args.filter):
-        print(f"[Telemetry] {event}")
-        await enqueue_command(
-            AGENT_ID,
-            "Telemetry event received",
-            meta={"type": "telemetry", "event": event, "timestamp": datetime.utcnow().isoformat()}
-        )
+async def handle_orchestrator(args):
+    orch = get_orchestrator()
+    try:
+        params = json.loads(args.params) if args.params else {}
+    except json.JSONDecodeError:
+        print(f"Invalid JSON for params: {args.params}")
+        sys.exit(1)
+    res = await orch.execute(action=args.action, params=params)
+    print(json.dumps(res, indent=2))
 
-async def run_alert_dispatcher(args):
-    logging.info("Dispatching alerts...")
-    result = alert_dispatcher.dispatch(alert_type=args.type, severity=args.severity)
-    print("\n[ Alert Dispatch Result ]")
-    print(result)
-    await enqueue_command(
-        AGENT_ID,
-        f"Alert dispatched: {args.type}",
-        meta={"type": "alert_dispatch", "result": result, "timestamp": datetime.utcnow().isoformat()}
-    )
 
-async def simulate_threat(args):
-    logging.info(f"Simulating threat scenario: {args.scenario}")
-    outcome = threat_simulator.simulate(scenario=args.scenario)
-    print("\n[ Threat Simulation Outcome ]")
-    print(outcome)
-    await enqueue_command(
-        AGENT_ID,
-        f"Threat simulation executed: {args.scenario}",
-        meta={"type": "threat_simulation", "outcome": outcome, "timestamp": datetime.utcnow().isoformat()}
-    )
+async def handle_telemetry(args):
+    telemetry = Telemetry()
+    async for entry in telemetry.stream(source=args.source, filter_expr=args.filter):
+        print(json.dumps(entry, indent=2))
 
-# ---- CLI Entrypoint ---- #
 
-def main():
-    parser = argparse.ArgumentParser(description="Sentenial-X Full Defensive CLI Suite")
+async def handle_blindspots(args):
+    # Example blindspot scan using Cortex + Orchestrator + Memory
+    cortex = Cortex()
+    orch = get_orchestrator()
+    mem = get_adapter()
+    res = await cortex.scan_blindspots()
+    await mem.log_command("blindspots", {}, res)
+    print(json.dumps(res, indent=2))
+
+
+async def handle_simulate(args):
+    # Placeholder simulation
+    orch = get_orchestrator()
+    mem = get_adapter()
+    res = {"scenario": args.scenario, "status": "simulated"}
+    await mem.log_command("simulate", {"scenario": args.scenario}, res)
+    print(json.dumps(res, indent=2))
+
+
+# ------------------------------
+# CLI Argument Parser
+# ------------------------------
+def build_parser():
+    parser = argparse.ArgumentParser(description="Sentenial-X CLI - async cybersecurity operator tool")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    # WormGPT Detector
-    worm_parser = subparsers.add_parser("wormgpt-detector", help="Simulate & counter WormGPT-style attacks")
-    worm_parser.add_argument("-p", "--prompt", type=str, required=True, help="Adversarial input to analyze")
-    worm_parser.add_argument("-t", "--temperature", type=float, default=0.7, help="Exploration randomness")
-    worm_parser.set_defaults(func=lambda args: asyncio.run(run_wormgpt_detector(args)))
+    # wormgpt-detector
+    wg = subparsers.add_parser("wormgpt-detector", help="Detect adversarial AI prompts")
+    wg.add_argument("-p", "--prompt", type=str, required=True, help="Input prompt")
+    wg.add_argument("-t", "--temperature", type=float, default=0.7, help="Exploration randomness")
+    wg.set_defaults(func=handle_wormgpt)
 
-    # Blind Spot Tracker
-    blind_parser = subparsers.add_parser("blindspots", help="Scan for detection blind spots")
-    blind_parser.set_defaults(func=lambda args: asyncio.run(run_blind_spot_tracker(args)))
+    # cortex
+    ctx = subparsers.add_parser("cortex", help="Run NLP threat analysis on logs/events")
+    ctx.add_argument("-s", "--source", type=str, required=True, help="Log file or source")
+    ctx.add_argument("-f", "--filter", type=str, default="", help="Optional filter expression")
+    ctx.set_defaults(func=handle_cortex)
 
-    # Cortex Analyzer
-    cortex_parser = subparsers.add_parser("cortex", help="Run NLP-based threat analysis on logs")
-    cortex_parser.add_argument("-s", "--source", type=str, required=True, help="Log source to analyze")
-    cortex_parser.add_argument("-f", "--filter", type=str, default=None, help="Optional filter expression")
-    cortex_parser.set_defaults(func=lambda args: asyncio.run(run_cortex_analysis(args)))
+    # alert
+    al = subparsers.add_parser("alert", help="Dispatch alerts")
+    al.add_argument("-t", "--type", required=True, help="Alert type")
+    al.add_argument("-s", "--severity", default="medium", help="Alert severity")
+    al.set_defaults(func=handle_alert)
 
-    # Orchestrator
-    orch_parser = subparsers.add_parser("orchestrator", help="Execute orchestrator commands")
-    orch_parser.add_argument("-a", "--action", type=str, required=True, help="Orchestrator action")
-    orch_parser.add_argument("-p", "--params", type=dict, default=None, help="Optional parameters")
-    orch_parser.set_defaults(func=lambda args: asyncio.run(orchestrator_command(args)))
+    # orchestrator
+    orch = subparsers.add_parser("orchestrator", help="Execute orchestrator action")
+    orch.add_argument("-a", "--action", required=True, help="Action name")
+    orch.add_argument("-p", "--params", help="JSON parameters")
+    orch.set_defaults(func=handle_orchestrator)
 
-    # Telemetry Streaming
-    telemetry_parser = subparsers.add_parser("telemetry", help="Stream real-time telemetry events")
-    telemetry_parser.add_argument("-s", "--source", type=str, required=True, help="Telemetry source")
-    telemetry_parser.add_argument("-f", "--filter", type=str, default=None, help="Optional filter expression")
-    telemetry_parser.set_defaults(func=lambda args: asyncio.run(stream_telemetry(args)))
+    # telemetry
+    tm = subparsers.add_parser("telemetry", help="Stream live telemetry")
+    tm.add_argument("-s", "--source", required=True, help="Telemetry source")
+    tm.add_argument("-f", "--filter", default="", help="Filter expression")
+    tm.set_defaults(func=handle_telemetry)
 
-    # Alert Dispatcher
-    alert_parser = subparsers.add_parser("alert", help="Dispatch alerts")
-    alert_parser.add_argument("-t", "--type", type=str, required=True, help="Alert type")
-    alert_parser.add_argument("-s", "--severity", type=str, default="medium", help="Alert severity")
-    alert_parser.set_defaults(func=lambda args: asyncio.run(run_alert_dispatcher(args)))
+    # blindspots
+    bs = subparsers.add_parser("blindspots", help="Scan for blind spots")
+    bs.set_defaults(func=handle_blindspots)
 
-    # Threat Simulator
-    sim_parser = subparsers.add_parser("simulate", help="Run threat simulation scenarios")
-    sim_parser.add_argument("-sc", "--scenario", type=str, required=True, help="Scenario name")
-    sim_parser.set_defaults(func=lambda args: asyncio.run(simulate_threat(args)))
+    # simulate
+    sim = subparsers.add_parser("simulate", help="Run threat simulation")
+    sim.add_argument("-sc", "--scenario", required=True, help="Scenario name")
+    sim.set_defaults(func=handle_simulate)
 
+    return parser
+
+
+# ------------------------------
+# Main Async Runner
+# ------------------------------
+async def main():
+    parser = build_parser()
     args = parser.parse_args()
-    args.func(args)
+    if hasattr(args, "func"):
+        await args.func(args)
+    else:
+        parser.print_help()
 
 
+# ------------------------------
+# Entry Point
+# ------------------------------
 if __name__ == "__main__":
-    main()
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        default_logger.info("CLI interrupted by user.")
+        print("\n[INFO] CLI interrupted by user. Exiting...")
