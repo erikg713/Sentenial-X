@@ -1,38 +1,61 @@
-# cli/wormgpt.py
-import random
-import subprocess
+#!/usr/bin/env python3
+"""
+cli/wormgpt.py
+
+WormGPT-style adversarial AI prompt detector for Sentenial-X.
+Designed for CLI usage via sentenial_cli_full.py.
+"""
+
 import asyncio
+import json
 from datetime import datetime
-from .logger import setup_logger
-from .memory import enqueue_command, run_async
-from .config import AGENT_ID
+from memory import write_command  # adjust import to your actual memory/logging module
+from logger import log_event  # optional logging helper
+from wormgpt_core import analyze_prompt  # your core AI detection logic
 
-logger = setup_logger("wormgpt")
+async def run_wormgpt(prompt: str, temperature: float = 0.7) -> dict:
+    """
+    Run adversarial prompt detection and generate countermeasures.
+    Args:
+        prompt (str): The input text to analyze.
+        temperature (float): Randomness factor for AI detection.
+    Returns:
+        dict: Detection results including risk, findings, countermeasures, timestamp.
+    """
+    # Ensure basic validation
+    if not prompt or not isinstance(prompt, str):
+        raise ValueError("Prompt must be a non-empty string.")
 
-async def run_wormgpt_simulation():
+    # Call your detection engine
+    try:
+        results = await analyze_prompt(prompt, temperature=temperature)
+    except Exception as e:
+        results = {"error": str(e), "action": "wormgpt-detector"}
+
+    # Construct full result
+    output = {
+        "action": "wormgpt-detector",
+        "prompt_risk": results.get("risk", "unknown"),
+        "detections": results.get("detections", []),
+        "countermeasures": results.get("countermeasures", []),
+        "temperature": temperature,
+        "timestamp": datetime.utcnow().isoformat() + "Z",
+    }
+
+    # Persist to memory/log
+    try:
+        write_command(action="wormgpt-detector", params={"prompt": prompt, "temperature": temperature}, result=output)
+    except Exception as e:
+        log_event(f"Failed to write WormGPT results to memory: {e}")
+
+    return output
+
+# CLI handler for sentenial_cli_full.py
+async def handle_wormgpt(args):
     """
-    Periodically simulate WormGPT-style threats.
+    Handler for CLI subparser: wormgpt-detector
+    Example usage:
+        ./sentenial_cli_full.py wormgpt-detector -p "example prompt" -t 0.8
     """
-    prompts = [
-        "Simulate ransomware",
-        "Phishing campaign",
-        "AI malware injection"
-    ]
-    while True:
-        prompt = random.choice(prompts)
-        cmd = f"wormgpt-detector -p \"{prompt}\" -t 0.7"
-        logger.info(f"Running WormGPT simulation: {prompt}")
-        try:
-            result = subprocess.run(
-                ["./sentenial_cli_full.py"] + cmd.split(),
-                capture_output=True,
-                text=True,
-                check=True
-            )
-            output = result.stdout.strip()
-            logger.info(f"WormGPT output: {output}")
-            await enqueue_command(AGENT_ID, "wormgpt_simulation", {"prompt": prompt, "output": output})
-        except subprocess.CalledProcessError as e:
-            logger.error(f"WormGPT simulation failed: {e.stderr}")
-            await enqueue_command(AGENT_ID, "wormgpt_simulation", {"prompt": prompt, "error": e.stderr})
-        await asyncio.sleep(30)
+    result = await run_wormgpt(prompt=args.prompt, temperature=args.temperature)
+    print(json.dumps(result, indent=2))
