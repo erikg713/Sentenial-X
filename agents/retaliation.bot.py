@@ -1,152 +1,120 @@
+# agents/retaliation_bot.py
+
 import asyncio
 import logging
-import random
 from datetime import datetime
-from typing import Dict, Any, Optional, List, Tuple
+from typing import Dict, Any, Optional
 
-# Configure logger
+from agents.base_agent import BaseAgent
+from agents.config import AgentConfig
+from core.engine.alert_dispatcher import AlertDispatcher
+from core.engine.incident_logger import IncidentLogger
+from core.engine.network_watcher import NetworkWatcher
+from core.engine.process_inspector import ProcessInspector
+
 logger = logging.getLogger("RetaliationBot")
 logger.setLevel(logging.INFO)
-handler = logging.StreamHandler()
-formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s")
-handler.setFormatter(formatter)
-if not logger.hasHandlers():
-    logger.addHandler(handler)
-
-# === Core Domain Classes ===
-
-class ThreatEvent:
-    """Represents a detected cyber threat."""
-    def __init__(self, source_ip: str, vector: str, severity: int, details: Optional[Dict[str, Any]] = None):
-        self.source_ip = source_ip
-        self.vector = vector
-        self.severity = severity
-        self.timestamp = datetime.utcnow()
-        self.details = details or {}
-
-    def __str__(self):
-        return (f"[{self.timestamp}] Threat from {self.source_ip} - "
-                f"Vector: {self.vector}, Severity: {self.severity}, Details: {self.details}")
 
 
-# === Action System ===
-
-class RetaliationAction:
-    """Abstract retaliation action."""
-    async def execute(self, event: ThreatEvent):
-        raise NotImplementedError("Subclasses must implement the execute() method.")
-
-
-class BlacklistIPAction(RetaliationAction):
-    async def execute(self, event: ThreatEvent):
-        logger.warning(f"Blacklisting IP: {event.source_ip} [Vector: {event.vector}]")
-
-
-class HoneypotRedirectAction(RetaliationAction):
-    async def execute(self, event: ThreatEvent):
-        logger.info(f"Redirecting {event.source_ip} to honeypot for further intelligence.")
-
-
-class CounterScanAction(RetaliationAction):
-    async def execute(self, event: ThreatEvent):
-        logger.info(f"Initiating counter-scan on {event.source_ip}.")
-
-
-class AlertAdminAction(RetaliationAction):
-    async def execute(self, event: ThreatEvent):
-        logger.info(f"Alerting administrator: {event}")
-
-
-class MultiAction(RetaliationAction):
-    """Executes multiple retaliation actions in parallel."""
-    def __init__(self, actions: List[RetaliationAction]):
-        self.actions = actions
-
-    async def execute(self, event: ThreatEvent):
-        await asyncio.gather(*(action.execute(event) for action in self.actions))
-
-
-# === Strategy System ===
-
-class RetaliationStrategy:
-    """Abstract retaliation strategy."""
-    async def respond(self, event: ThreatEvent):
-        raise NotImplementedError("Subclasses must implement the respond() method.")
-
-
-class SeverityBasedStrategy(RetaliationStrategy):
+class RetaliationBot(BaseAgent):
     """
-    Retaliation strategy based on threat severity level.
-    Custom thresholds and action lists can be supplied.
+    RetaliationBot listens for high-severity incidents and executes
+    automated, controlled countermeasures in response to active threats.
     """
-    def __init__(self, thresholds: Optional[Dict[str, Tuple[int, int, List[RetaliationAction]]]] = None):
-        self.thresholds = thresholds or {
-            "low":    (0, 3,   [AlertAdminAction()]),
-            "medium": (3, 7,   [AlertAdminAction(), BlacklistIPAction()]),
-            "high":   (7, 11,  [AlertAdminAction(), BlacklistIPAction(), HoneypotRedirectAction(), CounterScanAction()])
-        }
 
-    async def respond(self, event: ThreatEvent):
-        for label, (min_s, max_s, actions) in self.thresholds.items():
-            if min_s <= event.severity < max_s:
-                logger.debug(f"Severity level '{label}' matched for event: {event}")
-                await asyncio.gather(*(action.execute(event) for action in actions))
-                break
+    def __init__(self, config: Optional[AgentConfig] = None):
+        super().__init__(agent_id="retaliation_bot", config=config or AgentConfig())
+        self.alert_dispatcher = AlertDispatcher()
+        self.incident_logger = IncidentLogger()
+        self.network_watcher = NetworkWatcher()
+        self.process_inspector = ProcessInspector()
+        self.countermeasures_enabled = True
 
+    async def run(self) -> None:
+        """Main loop that continuously monitors and responds to incidents."""
+        logger.info("[RetaliationBot] Retaliation agent initialized and running...")
+        while True:
+            try:
+                alert = await self.alert_dispatcher.get_next_alert(timeout=5)
+                if alert:
+                    await self.handle_alert(alert)
+            except asyncio.TimeoutError:
+                await asyncio.sleep(1)
+            except Exception as e:
+                logger.error(f"[RetaliationBot] Error in run loop: {e}")
 
-# === Retaliation Bot ===
+    async def handle_alert(self, alert: Dict[str, Any]) -> None:
+        """
+        Process an incoming alert and trigger countermeasures if needed.
+        """
+        severity = alert.get("severity", "low").lower()
+        source_ip = alert.get("source_ip", "unknown")
+        process_id = alert.get("process_id")
 
-class RetaliationBot:
-    """Core engine that processes threats and executes strategies."""
-    def __init__(self, strategy: Optional[RetaliationStrategy] = None):
-        self.strategy = strategy or SeverityBasedStrategy()
-        self._active = False
+        logger.info(f"[RetaliationBot] Received alert: {alert}")
 
-    def activate(self):
-        self._active = True
-        logger.info("RetaliationBot activated.")
+        if severity in {"high", "critical"}:
+            logger.warning(f"[RetaliationBot] High severity threat detected from {source_ip}")
+            await self.take_countermeasures(source_ip, process_id, alert)
 
-    def deactivate(self):
-        self._active = False
-        logger.info("RetaliationBot deactivated.")
+    async def take_countermeasures(self, source_ip: str, process_id: Optional[int], alert: Dict[str, Any]) -> None:
+        """
+        Execute layered countermeasures: isolate process, block IP, deploy deception.
+        """
+        timestamp = datetime.utcnow().isoformat()
+        cm_log = {"time": timestamp, "source_ip": source_ip, "process_id": process_id, "action": []}
 
-    def is_active(self) -> bool:
-        return self._active
-
-    def set_strategy(self, strategy: RetaliationStrategy):
-        self.strategy = strategy
-        logger.info(f"Strategy updated: {strategy.__class__.__name__}")
-
-    async def handle_event(self, event: ThreatEvent):
-        if not self._active:
-            logger.debug("Bot is inactive. Event ignored.")
+        if not self.countermeasures_enabled:
+            logger.warning("[RetaliationBot] Countermeasures disabled. Logging only.")
+            await self.incident_logger.log_incident(alert)
             return
-        logger.info(f"Processing threat: {event}")
-        await self.strategy.respond(event)
 
+        # Step 1: Kill or isolate malicious process
+        if process_id:
+            try:
+                success = self.process_inspector.terminate_process(process_id)
+                if success:
+                    logger.info(f"[RetaliationBot] Terminated malicious process {process_id}")
+                    cm_log["action"].append(f"Terminated process {process_id}")
+                else:
+                    cm_log["action"].append(f"Failed to terminate process {process_id}")
+            except Exception as e:
+                cm_log["action"].append(f"Error terminating process {process_id}: {e}")
 
-# === Simulation ===
+        # Step 2: Block hostile IP address
+        if source_ip and source_ip != "unknown":
+            try:
+                success = self.network_watcher.block_ip(source_ip)
+                if success:
+                    logger.info(f"[RetaliationBot] Blocked hostile IP {source_ip}")
+                    cm_log["action"].append(f"Blocked IP {source_ip}")
+                else:
+                    cm_log["action"].append(f"Failed to block IP {source_ip}")
+            except Exception as e:
+                cm_log["action"].append(f"Error blocking IP {source_ip}: {e}")
 
-async def simulate_threats(bot: RetaliationBot, num_events: int = 5):
-    """Simulates random threat events."""
-    vectors = ["Port Scan", "SQL Injection", "Brute Force", "Zero-Day Exploit"]
-    for _ in range(num_events):
-        event = ThreatEvent(
-            source_ip=f"192.168.1.{random.randint(2, 254)}",
-            vector=random.choice(vectors),
-            severity=random.randint(1, 10),
-            details={"user_agent": "MaliciousBot/1.0"}
-        )
-        await bot.handle_event(event)
-        await asyncio.sleep(random.uniform(0.5, 2.0))
+        # Step 3: Deploy deception (honeypot redirection)
+        try:
+            deception_result = await self.deploy_deception(source_ip)
+            cm_log["action"].append(deception_result)
+        except Exception as e:
+            cm_log["action"].append(f"Error deploying deception: {e}")
 
+        # Log retaliation actions
+        await self.incident_logger.log_countermeasure(cm_log)
 
-# === Entry Point ===
+    async def deploy_deception(self, attacker_ip: str) -> str:
+        """
+        Redirect attacker traffic into a deception environment (honeypot).
+        """
+        await asyncio.sleep(0.5)  # simulate latency
+        logger.info(f"[RetaliationBot] Redirected attacker {attacker_ip} into deception environment.")
+        return f"Redirected attacker {attacker_ip} into honeypot"
 
-if __name__ == "__main__":
-    bot = RetaliationBot()
-    bot.activate()
-    try:
-        asyncio.run(simulate_threats(bot))
-    finally:
-        bot.deactivate()
+    def enable_countermeasures(self) -> None:
+        self.countermeasures_enabled = True
+        logger.info("[RetaliationBot] Countermeasures ENABLED")
+
+    def disable_countermeasures(self) -> None:
+        self.countermeasures_enabled = False
+        logger.info("[RetaliationBot] Countermeasures DISABLED")
