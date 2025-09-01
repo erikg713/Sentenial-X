@@ -1,55 +1,57 @@
-# cli/config.py
 import os
-from pathlib import Path
+from dotenv import load_dotenv
 
-# -----------------------------
-# General Paths
-# -----------------------------
-BASE_DIR = Path(__file__).resolve().parent.parent
-LOGS_DIR = BASE_DIR / "data" / "logs"
-EMBEDDINGS_DIR = BASE_DIR / "data" / "embeddings"
-REPORTS_DIR = BASE_DIR / "data" / "reports"
-AGENT_MEMORY_DB = BASE_DIR / "data" / "memory.db"
+# Load .env file if present
+load_dotenv()
 
-# -----------------------------
+# ---------------------------
 # Agent Configuration
-# -----------------------------
-AGENT_ID = os.getenv("SENTENIAL_AGENT_ID", "agent-001")
-AGENT_NAME = os.getenv("SENTENIAL_AGENT_NAME", "SentenialAgent")
-AGENT_MODE = os.getenv("SENTENIAL_AGENT_MODE", "passive")  # passive / active / autonomous
+# ---------------------------
+AGENT_ID = os.getenv("AGENT_ID", "sentenial_agent_001")
+AGENT_NAME = os.getenv("AGENT_NAME", "AI_Operator")
+AGENT_ROLE = os.getenv("AGENT_ROLE", "full_operator")
 
-# -----------------------------
-# CLI Defaults
-# -----------------------------
-DEFAULT_WORMGPT_TEMPERATURE = float(os.getenv("WORMGPT_TEMPERATURE", 0.7))
-DEFAULT_TELEMETRY_FILTER = os.getenv("TELEMETRY_FILTER", None)
-DEFAULT_ALERT_SEVERITY = os.getenv("DEFAULT_ALERT_SEVERITY", "medium")
+# ---------------------------
+# Memory / Database Configuration
+# ---------------------------
+MEMORY_BACKEND = os.getenv("MEMORY_BACKEND", "sqlite")  # options: sqlite, postgres, redis
+DB_PATH = os.getenv("DB_PATH", "sentenial.db")
+POSTGRES_URL = os.getenv("POSTGRES_URL", "postgresql://user:pass@localhost:5432/sentenial_db")
 
-# -----------------------------
-# Telemetry / Reporting
-# -----------------------------
-TELEMETRY_ENABLED = os.getenv("TELEMETRY_ENABLED", "true").lower() == "true"
-TELEMETRY_ENDPOINT = os.getenv("TELEMETRY_ENDPOINT", "http://localhost:5000/telemetry")
-REPORT_ENDPOINT = os.getenv("REPORT_ENDPOINT", "http://localhost:5000/report")
+# ---------------------------
+# Logging Configuration
+# ---------------------------
+LOG_LEVEL = os.getenv("LOG_LEVEL", "DEBUG")  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+LOG_FILE = os.getenv("LOG_FILE", "logs/sentenial.log")  # ensure logs/ folder exists
 
-# -----------------------------
-# Logging
-# -----------------------------
-LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
-LOG_FILE = LOGS_DIR / "cli_agent.log"
+# ---------------------------
+# Telemetry Configuration
+# ---------------------------
+TELEMETRY_ENABLED = os.getenv("TELEMETRY_ENABLED", "True").lower() in ("true", "1", "yes")
+TELEMETRY_SOURCES = os.getenv("TELEMETRY_SOURCES", "network_monitor,endpoint_sensor").split(",")
 
-# -----------------------------
-# ML / Threat Modules
-# -----------------------------
-ML_MODELS_DIR = BASE_DIR / "models"
-BERT_MODEL_PATH = ML_MODELS_DIR / "bert_intent_classifier"
-LORE_MODEL_DIR = ML_MODELS_DIR / "lora"
-ENCODER_MODEL_DIR = ML_MODELS_DIR / "encoder"
+# ---------------------------
+# Orchestrator Configuration
+# ---------------------------
+ORCHESTRATOR_URL = os.getenv("ORCHESTRATOR_URL", "http://localhost:8000")
+ORCHESTRATOR_TOKEN = os.getenv("ORCHESTRATOR_TOKEN", "changeme12345")
 
-# -----------------------------
-# Helper Functions
-# -----------------------------
-def ensure_dirs():
-    """Ensure all essential directories exist."""
-    for path in [LOGS_DIR, EMBEDDINGS_DIR, REPORTS_DIR, ML_MODELS_DIR]:
-        path.mkdir(parents=True, exist_ok=True)
+# ---------------------------
+# WormGPT / Detection
+# ---------------------------
+WORMGPT_TEMPERATURE = float(os.getenv("WORMGPT_TEMPERATURE", 0.7))
+
+# ---------------------------
+# Alerts Configuration
+# ---------------------------
+ALERT_DEFAULT_SEVERITY = os.getenv("ALERT_DEFAULT_SEVERITY", "medium")
+
+# ---------------------------
+# Simulation / Testing
+# ---------------------------
+SIMULATOR_ENABLED = os.getenv("SIMULATOR_ENABLED", "True").lower() in ("true", "1", "yes")
+
+# ---------------------------
+# External API Keys (Optional)
+# ---------------------------
+# EXTERNAL_API_KEY = os.getenv("EXTERNAL_API_KEY", None)
