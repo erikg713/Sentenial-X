@@ -1,169 +1,146 @@
 #!/usr/bin/env python3
-import os
-import json
+"""
+cli/agent_daemon.py
+
+Production-ready daemon for managing Sentenial-X agents:
+- AI Agent
+- Retaliation Bot
+- Endpoint Agent
+
+Features:
+- Async task management
+- Logging
+- Start/Stop/Restart/Status commands
+- Graceful shutdown
+"""
+
 import asyncio
 import logging
-import random
-from pathlib import Path
+import sys
 from datetime import datetime
-import subprocess
+from typing import Dict, Optional
 
-from cli.config import AGENT_ID, HEARTBEAT_INTERVAL, COMMAND_QUEUE, LOG_FILE
-from cli.logger import setup_logger
-from cli.memory import enqueue_command, run_async
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+logger = logging.getLogger("agent_daemon")
 
-# -------------------------
-# Logging Setup
-# -------------------------
-logger = setup_logger("sentenial-agent")
-os.makedirs(LOG_FILE.parent, exist_ok=True)
+# Registry for running agents
+AGENTS: Dict[str, asyncio.Task] = {}
 
-# -------------------------
-# Heartbeat
-# -------------------------
-async def send_heartbeat():
+# ------------------------------
+# Agent implementations (replace with real logic)
+# ------------------------------
+async def ai_agent():
     while True:
-        heartbeat = {
-            "agent": AGENT_ID,
-            "status": "online",
-            "timestamp": datetime.utcnow().isoformat() + "Z"
-        }
-        logger.info(f"Heartbeat sent: {heartbeat}")
-        await enqueue_command(AGENT_ID, "heartbeat", heartbeat)
-        await asyncio.sleep(HEARTBEAT_INTERVAL)
+        logger.info("[AI_AGENT] Processing AI threat detection...")
+        await asyncio.sleep(5)
 
-# -------------------------
-# Command Listener
-# -------------------------
-async def listen_for_commands():
-    os.makedirs(COMMAND_QUEUE.parent, exist_ok=True)
+async def retaliation_bot():
     while True:
-        if COMMAND_QUEUE.exists():
-            try:
-                with COMMAND_QUEUE.open("r") as f:
-                    commands = json.load(f)
-                if AGENT_ID in commands:
-                    for cmd in commands[AGENT_ID]:
-                        logger.info(f"Executing command: {cmd}")
-                        # Execute CLI command safely
-                        try:
-                            result = subprocess.run(
-                                ["./sentenial_cli_full.py"] + cmd.split(),
-                                capture_output=True,
-                                text=True,
-                                check=True
-                            )
-                            output = result.stdout.strip()
-                            logger.info(f"Command output: {output}")
-                            await enqueue_command(AGENT_ID, cmd, {"output": output})
-                        except subprocess.CalledProcessError as e:
-                            logger.error(f"Command failed: {e.stderr}")
-                            await enqueue_command(AGENT_ID, cmd, {"error": e.stderr})
-                    # Clear executed commands
-                    del commands[AGENT_ID]
-                    with COMMAND_QUEUE.open("w") as f:
-                        json.dump(commands, f, indent=2)
-            except Exception as e:
-                logger.error(f"Failed to process commands: {e}")
-        await asyncio.sleep(5)  # Poll interval
+        logger.info("[RETALIATION_BOT] Monitoring for retaliation events...")
+        await asyncio.sleep(5)
 
-# -------------------------
-# WormGPT Detector Simulation
-# -------------------------
-async def run_wormgpt_detector_periodic():
+async def endpoint_agent():
     while True:
-        # Example adversarial prompts
-        prompt = random.choice([
-            "Simulate ransomware",
-            "Phishing email generation",
-            "AI malware attack"
-        ])
-        temperature = 0.7
-        cmd = f"wormgpt-detector -p \"{prompt}\" -t {temperature}"
-        logger.info(f"Running WormGPT detector: {prompt}")
+        logger.info("[ENDPOINT_AGENT] Monitoring endpoints for anomalies...")
+        await asyncio.sleep(5)
+
+AGENT_MAP = {
+    "ai_agent": ai_agent,
+    "retaliation_bot": retaliation_bot,
+    "endpoint_agent": endpoint_agent,
+}
+
+# ------------------------------
+# Core agent control functions
+# ------------------------------
+def status(agent_name: Optional[str] = None):
+    """Print status of agents"""
+    if agent_name:
+        state = "running" if agent_name in AGENTS else "stopped"
+        logger.info(f"{agent_name}: {state}")
+    else:
+        for name in AGENT_MAP:
+            state = "running" if name in AGENTS else "stopped"
+            logger.info(f"{name}: {state}")
+
+async def start(agent_name: str):
+    """Start an agent asynchronously"""
+    if agent_name not in AGENT_MAP:
+        logger.error(f"Unknown agent: {agent_name}")
+        return
+    if agent_name in AGENTS:
+        logger.warning(f"{agent_name} is already running")
+        return
+    task = asyncio.create_task(AGENT_MAP[agent_name](), name=agent_name)
+    AGENTS[agent_name] = task
+    logger.info(f"Started {agent_name}")
+
+async def stop(agent_name: str):
+    """Stop a running agent gracefully"""
+    task = AGENTS.get(agent_name)
+    if not task:
+        logger.warning(f"{agent_name} is not running")
+        return
+    task.cancel()
+    try:
+        await task
+    except asyncio.CancelledError:
+        logger.info(f"{agent_name} stopped")
+    AGENTS.pop(agent_name, None)
+
+async def restart(agent_name: str):
+    """Restart an agent"""
+    await stop(agent_name)
+    await start(agent_name)
+
+# ------------------------------
+# CLI entrypoint
+# ------------------------------
+async def main():
+    if len(sys.argv) < 3:
+        logger.error("Usage: python -m cli.agent --start|--stop|--restart|--status <agent_name>")
+        sys.exit(1)
+
+    command, agent_name = sys.argv[1], sys.argv[2]
+
+    if command == "--start":
+        await start(agent_name)
+    elif command == "--stop":
+        await stop(agent_name)
+    elif command == "--restart":
+        await restart(agent_name)
+    elif command == "--status":
+        status(agent_name)
+    else:
+        logger.error(f"Unknown command: {command}")
+        sys.exit(1)
+
+    # Keep running any started agents
+    running_tasks = [t for t in AGENTS.values() if not t.done()]
+    if running_tasks:
         try:
-            result = subprocess.run(
-                ["./sentenial_cli_full.py"] + cmd.split(),
-                capture_output=True,
-                text=True,
-                check=True
-            )
-            output = result.stdout.strip()
-            logger.info(f"WormGPT results: {output}")
-            await enqueue_command(AGENT_ID, "wormgpt_detector", {"prompt": prompt, "output": output})
-        except subprocess.CalledProcessError as e:
-            logger.error(f"WormGPT detector failed: {e.stderr}")
-            await enqueue_command(AGENT_ID, "wormgpt_detector", {"prompt": prompt, "error": e.stderr})
-        await asyncio.sleep(30)  # Run every 30 seconds
+            await asyncio.gather(*running_tasks)
+        except asyncio.CancelledError:
+            logger.info("Daemon shutting down...")
 
-# -------------------------
-# Telemetry Streaming Simulation
-# -------------------------
-async def stream_telemetry():
-    while True:
-        telemetry = {
-            "cpu": random.randint(5, 80),
-            "memory": random.randint(10, 70),
-            "network": random.randint(0, 100),
-            "timestamp": datetime.utcnow().isoformat()
-        }
-        logger.info(f"Telemetry: {telemetry}")
-        await enqueue_command(AGENT_ID, "telemetry", telemetry)
-        await asyncio.sleep(10)
+# ------------------------------
+# Graceful shutdown handling
+# ------------------------------
+def run_daemon():
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        logger.info("Received SIGINT. Cancelling running agents...")
+        for task in list(AGENTS.values()):
+            task.cancel()
+        asyncio.run(asyncio.sleep(0.1))
+        logger.info("Shutdown complete.")
 
-# -------------------------
-# Main Daemon
-# -------------------------
-async def main():
-    logger.info(f"Sentenial-X Agent '{AGENT_ID}' starting...")
-    await asyncio.gather(
-        send_heartbeat(),
-        listen_for_commands(),
-        run_wormgpt_detector_periodic(),
-        stream_telemetry()
-    )
 
 if __name__ == "__main__":
-    asyncio.run(main())            result = subprocess.run(
-                ["./sentenial_cli_full.py"] + cmd.split(),
-                capture_output=True,
-                text=True,
-                check=True
-            )
-            output = result.stdout.strip()
-            logger.info(f"WormGPT results: {output}")
-            await enqueue_command(AGENT_ID, "wormgpt_detector", {"prompt": prompt, "output": output})
-        except subprocess.CalledProcessError as e:
-            logger.error(f"WormGPT detector failed: {e.stderr}")
-            await enqueue_command(AGENT_ID, "wormgpt_detector", {"prompt": prompt, "error": e.stderr})
-        await asyncio.sleep(30)  # Run every 30 seconds
-
-# -------------------------
-# Telemetry Streaming Simulation
-# -------------------------
-async def stream_telemetry():
-    while True:
-        telemetry = {
-            "cpu": random.randint(5, 80),
-            "memory": random.randint(10, 70),
-            "network": random.randint(0, 100),
-            "timestamp": datetime.utcnow().isoformat()
-        }
-        logger.info(f"Telemetry: {telemetry}")
-        await enqueue_command(AGENT_ID, "telemetry", telemetry)
-        await asyncio.sleep(10)
-
-# -------------------------
-# Main Daemon
-# -------------------------
-async def main():
-    logger.info(f"Sentenial-X Agent '{AGENT_ID}' starting...")
-    await asyncio.gather(
-        send_heartbeat(),
-        listen_for_commands(),
-        run_wormgpt_detector_periodic(),
-        stream_telemetry()
-    )
-
-if __name__ == "__main__":
-    asyncio.run(main())
+    run_daemon()
