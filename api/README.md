@@ -23,7 +23,7 @@ Ready for Dockerized deployments with Gunicorn + Uvicorn workers.
 ---
 
 📂 Project Structure
-
+```
 SentenialX/
  ├── api/
  │   ├── server.py           # FastAPI entrypoint
@@ -44,18 +44,18 @@ SentenialX/
  ├── gui/                    # Dashboard frontend
  ├── requirements.txt        # Python dependencies
  └── README.md               # Documentation
-
+```
 
 ---
 
 ⚡ Installation
-
+```
 Clone the repository and install dependencies:
 
 git clone https://github.com/your-org/sentenialx.git
 cd sentenialx
 pip install -r requirements.txt
-
+```
 
 ---
 
