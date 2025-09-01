@@ -1,27 +1,65 @@
-import time
-import logging
-from fastapi import FastAPI, Request
-from fastapi.middleware.cors import CORSMiddleware
+# api/middleware.py
+"""
+Middleware for Sentenial-X API
+Includes API key verification, logging, and error handling
+"""
 
-logger = logging.getLogger("sentenialx.api")
-logging.basicConfig(level=logging.INFO)
+from fastapi import Request, HTTPException
+from fastapi.responses import JSONResponse
+from starlette.middleware.base import BaseHTTPMiddleware
+from api.utils.logger import init_logger
+from api.utils.response import error_response
+from api.config import API_KEY
 
-def setup_middleware(app: FastAPI) -> None:
-    # CORS
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=["*"],  # tighten in prod
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+logger = init_logger("sentenialx_middleware")
 
-    @app.middleware("http")
-    async def timing_middleware(request: Request, call_next):
-        start = time.time()
+
+class APIKeyMiddleware(BaseHTTPMiddleware):
+    """
+    Middleware to verify X-API-KEY header in requests
+    """
+
+    async def dispatch(self, request: Request, call_next):
+        api_key = request.headers.get("x-api-key")
+        if api_key != API_KEY:
+            logger.warning(f"Unauthorized access attempt from {request.client.host}")
+            return JSONResponse(
+                status_code=403,
+                content=error_response("Invalid API Key", 403)
+            )
         response = await call_next(request)
-        dur_ms = (time.time() - start) * 1000
-        logger.info("%s %s -> %s in %.2fms",
-                    request.method, request.url.path, response.status_code, dur_ms)
-        response.headers["X-Response-Time-ms"] = f"{dur_ms:.2f}"
         return response
+
+
+class RequestLoggingMiddleware(BaseHTTPMiddleware):
+    """
+    Middleware to log incoming requests
+    """
+
+    async def dispatch(self, request: Request, call_next):
+        logger.info(f"Incoming request: {request.method} {request.url}")
+        response = await call_next(request)
+        logger.info(f"Response status: {response.status_code}")
+        return response
+
+
+class GlobalExceptionMiddleware(BaseHTTPMiddleware):
+    """
+    Middleware to handle uncaught exceptions
+    """
+
+    async def dispatch(self, request: Request, call_next):
+        try:
+            return await call_next(request)
+        except HTTPException as e:
+            logger.error(f"HTTPException: {e.detail}")
+            return JSONResponse(
+                status_code=e.status_code,
+                content=error_response(e.detail, e.status_code)
+            )
+        except Exception as e:
+            logger.exception("Unhandled exception occurred")
+            return JSONResponse(
+                status_code=500,
+                content=error_response("Internal Server Error", 500)
+            )
