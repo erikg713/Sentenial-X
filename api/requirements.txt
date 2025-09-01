@@ -1,0 +1,30 @@
+# Core API framework
+fastapi==0.111.0
+pydantic==2.9.2
+uvicorn[standard]==0.23.1
+
+# Environment management
+python-dotenv==1.0.1
+
+# Optional production server
+gunicorn==21.2.0
+
+# Database / ORM (if needed, PostgreSQL example)
+asyncpg==1.41.0
+databases[postgresql]==1.2.2
+
+# Logging and utilities
+loguru==0.7.1
+
+# For CORS support (already included in FastAPI)
+starlette==0.29.3
+
+# For testing (optional)
+pytest==8.3.2
+httpx==2.2.3
+
+# Optional security / hashing
+passlib[bcrypt]==1.8.2
+
+# Optional AI / emulation modules
+numpy==1.27.5
