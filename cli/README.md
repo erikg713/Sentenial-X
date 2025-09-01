@@ -905,4 +905,17 @@ Example
 ---
 
 If you want, I can tailor this playbook to your exact config.py and memory schema—paste those snippets and I’ll wire the queries and examples to your real structure.
+# Start only the AI agent
+python -m cli.agent --start ai_agent
 
+# Stop only the retaliation bot
+python -m cli.agent --stop retaliation_bot
+
+# Restart the endpoint agent
+python -m cli.agent --restart endpoint_agent
+
+# Show status of all agents
+python -m cli.agent --status
+
+# Show status of a specific agent
+python -m cli.agent --status ai_agent
