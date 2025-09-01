@@ -49,3 +49,59 @@ class AlertResponse(BaseModel):
     severity: str
     type: str
     timestamp: str
+# api/models.py
+"""
+Pydantic models for Sentenial-X API
+Includes request and response schemas for Cortex, WormGPT, Orchestrator, Telemetry, and Exploits
+"""
+
+from pydantic import BaseModel, Field
+from typing import List, Dict, Optional, Any
+
+
+# ----------------------------
+# Telemetry Models
+# ----------------------------
+class TelemetryResponse(BaseModel):
+    cpu: str
+    memory: str
+    disk: Optional[str] = None
+    network: Optional[str] = None
+
+
+# ----------------------------
+# Orchestrator Models
+# ----------------------------
+class OrchestratorActionResponse(BaseModel):
+    message: str
+
+
+# ----------------------------
+# Cortex Models
+# ----------------------------
+class ThreatAnalysisRequest(BaseModel):
+    threat: Dict[str, Any] = Field(..., description="Threat data to be analyzed")
+
+
+class ThreatAnalysisResponse(BaseModel):
+    threat: Dict[str, Any]
+    confidence: float = Field(..., description="Confidence score between 0 and 1")
+
+
+# ----------------------------
+# WormGPT Models
+# ----------------------------
+class WormGPTRequest(BaseModel):
+    payload: Dict[str, Any] = Field(..., description="Payload for WormGPT emulation")
+
+
+class WormGPTResponse(BaseModel):
+    payload: Dict[str, Any]
+    status: str = Field(default="emulated")
+
+
+# ----------------------------
+# Exploits Models
+# ----------------------------
+class ExploitListResponse(BaseModel):
+    exploits: List[str]
