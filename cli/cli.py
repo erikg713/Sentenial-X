@@ -1,182 +1,150 @@
-import asyncio
-import json
-import os
-import typer
-import requests
-import logging
+#!/usr/bin/env python3
+"""
+cli/cli.py
 
-from memory import enqueue_command
-from config import COMMAND_POLL_INTERVAL, AGENT_ID, NETWORK_PORT
+Main CLI entrypoint for Sentenial-X.
+Supports:
+- wormgpt-detector
+- blindspots
+- cortex
+- orchestrator
+- telemetry
+- alert
+- simulate
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-
-# Create Typer app
-app = typer.Typer(help="📡 Sentenial-X AI Agent CLI Interface")
-
-
-@app.command()
-def start():
-    """
-    🚀 Start the AI Agent in the foreground.
-    """
-    typer.echo("🚀 Launching Sentenial-X agent...")
-    os.execvp("python3", ["python3", "agent.py"])
-
-
-@app.command()
-def send(command: str):
-    """
-    📤 Enqueue a command to the AI agent.
-    """
-    try:
-        asyncio.run(enqueue_command(AGENT_ID, command.strip()))
-        typer.echo(f"✅ Command queued: {command}")
-    except Exception as e:
-        logging.exception("❌ Failed to enqueue command")
-        typer.echo(f"❌ Error queuing command: {e}")
-
-
-@app.command()
-def status():
-    """
-    🧠 Check the health status of the AI agent.
-    """
-    url = f"http://localhost:{NETWORK_PORT}/health"
-    try:
-        response = requests.get(url, timeout=3)
-        response.raise_for_status()
-        typer.echo(json.dumps(response.json(), indent=2))
-    except requests.ConnectionError:
-        typer.echo("❌ Agent is not running or unreachable.")
-    except requests.Timeout:
-        typer.echo("⏱️ Request to agent timed out.")
-    except Exception as e:
-        logging.exception("❌ Unexpected error during status check")
-        typer.echo(f"❌ Unexpected error: {e}")
-
-
-@app.command()
-def broadcast(message: str):
-    """
-    📡 Manually broadcast a status message to peer agents.
-    """
-    url = f"http://localhost:{NETWORK_PORT}/message"
-    payload = {"from": AGENT_ID, "msg": message}
-
-    try:
-        response = requests.post(url, json=payload, timeout=3)
-        if response.status_code == 204:
-            typer.echo("📢 Broadcast sent successfully.")
-        else:
-            typer.echo(f"⚠️ Unexpected response: {response.status_code}")
-    except requests.RequestException as e:
-        logging.exception("❌ Broadcast request failed")
-        typer.echo(f"❌ Broadcast error: {e}")
-
-
-@app.command()
-def stop():
-    """
-    🛑 Stop the AI Agent gracefully.
-    (Note: requires agent to support signal handling or PID tracking.)
-    """
-    try:
-        os.system("pkill -f agent.py")
-        typer.echo("🛑 Agent stopped.")
-    except Exception as e:
-        logging.exception("❌ Failed to stop agent")
-        typer.echo(f"❌ Error stopping agent: {e}")
- def main():
-+    banner = """
-+   🚨 Sentenial-X A.I. – The Ultimate Cyber Guardian 🚨
-+   Crafted for resilience. Engineered for vengeance.
-+   A digital sentinel with the mind of a warrior and the reflexes of a machine.
-+    """
-+    print(banner)
-     # existing CLI entrypoints…
+Usage:
+    python cli.py <command> [options]
+"""
 
 import argparse
-from sentenialx.ai_core import (
-    detect_prompt_threat,
-    log_threat_event,
-    update_model,
-    start_ipc_server
-)
-from sentenialx.ai_core.datastore import get_recent_threats
+import asyncio
+import logging
+import sys
+
+from cli import wormgpt, alerts, agent_daemon_full, memory, cortex, orchestrator, telemetry, simulate
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("SentenialCLI")
 
 
-def run_scan(text):
-    confidence = detect_prompt_threat(text)
-    print(f"[SCAN RESULT] Confidence of threat: {confidence:.2f}")
-    if confidence > 0.85:
-        print("[⚠️] THREAT detected!")
-        log_threat_event("ai_prompt_threat", "cli", text, confidence)
-    else:
-        print("[✅] No threat detected.")
+# ------------------------------
+# Async command runner
+# ------------------------------
+async def run_command(args):
+    """
+    Dispatches the appropriate command handler based on CLI input.
+    """
+    try:
+        if hasattr(args, "handler") and callable(args.handler):
+            result = await args.handler(args)
+            print(result)
+        else:
+            logger.error("No valid handler defined for command.")
+    except Exception as e:
+        logger.exception(f"Command execution failed: {e}")
 
-def add_feedback(text, label):
-    update_model(text, label)
-    print(f"[🧠] Feedback recorded: '{label}' -> {text}")
 
-def view_threats(limit):
-    threats = get_recent_threats(limit)
-    print(f"\n[🧾] Showing last {len(threats)} threat(s):")
-    for row in threats:
-        print(f"{row[1]} | {row[2]} | {row[4]} | Confidence: {row[5]}")
+# ------------------------------
+# Subcommand handlers
+# ------------------------------
 
+# WormGPT
+async def handle_wormgpt(args):
+    return await wormgpt.run_detector(args.prompt, getattr(args, "temperature", 0.7))
+
+# Blindspots
+async def handle_blindspots(args):
+    from cli.agent_daemon_full import scan_blindspots
+    return await scan_blindspots()
+
+# Cortex
+async def handle_cortex(args):
+    return await cortex.analyze(args.source, getattr(args, "filter", None))
+
+# Orchestrator
+async def handle_orchestrator(args):
+    params = {}
+    if getattr(args, "params", None):
+        import json
+        params = json.loads(args.params)
+    return await orchestrator.execute(args.action, params)
+
+# Telemetry
+async def handle_telemetry(args):
+    return await telemetry.stream(args.source, getattr(args, "filter", None))
+
+# Alerts
+async def handle_alert(args):
+    import json
+    metadata = json.loads(args.metadata) if getattr(args, "metadata", None) else None
+    return await alerts.send_alert(args.type, getattr(args, "severity", "medium"), getattr(args, "message", None), metadata)
+
+# Simulate
+async def handle_simulate(args):
+    return await simulate.run_scenario(args.scenario)
+
+
+# ------------------------------
+# CLI Parser Setup
+# ------------------------------
 def main():
-    parser = argparse.ArgumentParser(
-        description="🧠 Sentenial X A.I. CLI — Threat Scanner & Daemon Interface"
-    )
-    subparsers = parser.add_subparsers(dest="command")
+    parser = argparse.ArgumentParser(description="Sentenial-X CLI")
+    subparsers = parser.add_subparsers(title="Commands", dest="command")
 
-# 🔁 watch live threats
-    subparsers.add_parser("watch", help="Stream live threats from log DB")
+    # wormgpt-detector
+    wp = subparsers.add_parser("wormgpt-detector", help="Detect adversarial AI prompts")
+    wp.add_argument("-p", "--prompt", required=True, help="Prompt text to analyze")
+    wp.add_argument("-t", "--temperature", type=float, default=0.7, help="Randomness for detection")
+    wp.set_defaults(handler=handle_wormgpt)
 
-    # 📄 scan a text file line-by-line
-    file_parser = subparsers.add_parser("scanfile", help="Scan lines from a file")
-    file_parser.add_argument("file_path", type=str, help="Path to file")
+    # blindspots
+    bp = subparsers.add_parser("blindspots", help="Scan for detection blind spots")
+    bp.set_defaults(handler=handle_blindspots)
 
-    # 💣 simulate payload
-    sim_parser = subparsers.add_parser("simulate", help="Run a ransomware test payload")
+    # cortex
+    cp = subparsers.add_parser("cortex", help="Run NLP threat analysis")
+    cp.add_argument("-s", "--source", required=True, help="Log file or event source")
+    cp.add_argument("-f", "--filter", help="Optional filter expression")
+    cp.set_defaults(handler=handle_cortex)
 
-    # 🔐 defend mode
-    subparsers.add_parser("defend", help="Auto-monitor stdin for threats (stealth mode)")
+    # orchestrator
+    op = subparsers.add_parser("orchestrator", help="Execute orchestrator actions")
+    op.add_argument("-a", "--action", required=True, help="Orchestrator action name")
+    op.add_argument("-p", "--params", help="JSON string of parameters")
+    op.set_defaults(handler=handle_orchestrator)
 
-    # ⛔ shutdown daemon
-    subparsers.add_parser("shutdown", help="Trigger shutdown across agents")
+    # telemetry
+    tp = subparsers.add_parser("telemetry", help="Stream real-time telemetry")
+    tp.add_argument("-s", "--source", required=True, help="Telemetry source")
+    tp.add_argument("-f", "--filter", help="Optional filter expression")
+    tp.set_defaults(handler=handle_telemetry)
 
-    # 🔍 scan
-    scan_parser = subparsers.add_parser("scan", help="Scan a string for threats")
-    scan_parser.add_argument("text", type=str, help="Text to analyze")
+    # alert
+    ap = subparsers.add_parser("alert", help="Dispatch an alert")
+    ap.add_argument("-t", "--type", required=True, help="Alert type")
+    ap.add_argument("-s", "--severity", default="medium", help="Severity level")
+    ap.add_argument("-m", "--message", help="Optional human-readable message")
+    ap.add_argument("--metadata", help="Optional JSON metadata")
+    ap.set_defaults(handler=handle_alert)
 
-    # 🧠 feedback
-    feedback_parser = subparsers.add_parser("feedback", help="Provide feedback to model")
-    feedback_parser.add_argument("text", type=str, help="Text input")
-    feedback_parser.add_argument("label", type=str, choices=["malicious", "safe"], help="Label")
+    # simulate
+    sp = subparsers.add_parser("simulate", help="Run a threat simulation scenario")
+    sp.add_argument("-sc", "--scenario", required=True, help="Threat scenario name")
+    sp.set_defaults(handler=handle_simulate)
 
-    # 📜 view logs
-    logs_parser = subparsers.add_parser("logs", help="View recent threat events")
-    logs_parser.add_argument("--limit", type=int, default=10, help="How many entries to show")
-
-    # 🚀 daemon
-    daemon_parser = subparsers.add_parser("daemon", help="Run the AI daemon server")
-
+    # parse args
     args = parser.parse_args()
 
-    if args.command == "scan":
-        run_scan(args.text)
-    elif args.command == "feedback":
-        add_feedback(args.text, args.label)
-    elif args.command == "logs":
-        view_threats(args.limit)
-    elif args.command == "daemon":
-        print("[🚀] Launching Sentenial X Daemon (ZeroMQ IPC on port 5556)...")
-        start_ipc_server()
-        input("[Press Enter to stop the daemon...]\n")
-    else:
+    if not args.command:
         parser.print_help()
-        
+        sys.exit(1)
+
+    # Run async handler
+    asyncio.run(run_command(args))
+
+
+# ------------------------------
+# Entry point
+# ------------------------------
 if __name__ == "__main__":
-    app()
+    main()
