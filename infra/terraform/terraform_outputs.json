@@ -1,1 +1,56 @@
-
+{
+  "api_service_url": {
+    "value": "https://sentenialx-api.example.com",
+    "type": "string",
+    "description": "External URL of the Sentenial-X API service"
+  },
+  "dashboard_url": {
+    "value": "https://dashboard.sentenialx.example.com",
+    "type": "string",
+    "description": "Public URL of the Sentenial-X Dashboard"
+  },
+  "db_endpoint": {
+    "value": "sentenialx-db.cluster-xyz.us-east-1.rds.amazonaws.com:5432",
+    "type": "string",
+    "description": "Database endpoint for Sentenial-X Postgres"
+  },
+  "db_username": {
+    "value": "sentenialx_admin",
+    "type": "string",
+    "sensitive": true
+  },
+  "db_password": {
+    "value": "REDACTED",
+    "type": "string",
+    "sensitive": true
+  },
+  "k8s_cluster_name": {
+    "value": "sentenialx-prod-cluster",
+    "type": "string",
+    "description": "EKS/GKE/AKS Cluster Name"
+  },
+  "k8s_cluster_endpoint": {
+    "value": "https://123.45.67.89",
+    "type": "string",
+    "description": "Kubernetes cluster API endpoint"
+  },
+  "analyzer_service_cluster_ip": {
+    "value": "10.3.250.12",
+    "type": "string",
+    "description": "Internal cluster IP for analyzer microservice"
+  },
+  "ingress_controller": {
+    "value": "nginx",
+    "type": "string",
+    "description": "Ingress controller deployed for public routing"
+  },
+  "terraform_version": {
+    "value": "1.5.7",
+    "type": "string"
+  },
+  "last_apply_timestamp": {
+    "value": "2025-09-02T15:23:01Z",
+    "type": "string",
+    "description": "Last successful Terraform apply timestamp"
+  }
+}
