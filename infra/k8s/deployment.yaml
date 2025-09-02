@@ -1,1 +1,205 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: sentenialx
 
+---
+# -----------------------------
+# PostgreSQL StatefulSet
+# -----------------------------
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: sentenialx-db
+  namespace: sentenialx
+spec:
+  serviceName: "sentenialx-db"
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sentenialx-db
+  template:
+    metadata:
+      labels:
+        app: sentenialx-db
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:15-alpine
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: sentenialx-db-secret
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: sentenialx-db-secret
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_DB
+              value: sentenialx
+          volumeMounts:
+            - name: pgdata
+              mountPath: /var/lib/postgresql/data
+  volumeClaimTemplates:
+    - metadata:
+        name: pgdata
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 10Gi
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: sentenialx-db-secret
+  namespace: sentenialx
+type: Opaque
+stringData:
+  POSTGRES_USER: user
+  POSTGRES_PASSWORD: pass
+
+---
+# -----------------------------
+# Sentenial-X API Deployment
+# -----------------------------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sentenialx-api
+  namespace: sentenialx
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: sentenialx-api
+  template:
+    metadata:
+      labels:
+        app: sentenialx-api
+    spec:
+      containers:
+        - name: sentenialx-api
+          image: your-docker-repo/sentenialx-api:latest
+          ports:
+            - containerPort: 8000
+          env:
+            - name: API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: sentenialx-api-secret
+                  key: API_KEY
+            - name: DB_URL
+              value: postgresql://user:pass@sentenialx-db.sentenialx.svc.cluster.local:5432/sentenialx
+          readinessProbe:
+            httpGet:
+              path: /api/telemetry/
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          livenessProbe:
+            httpGet:
+              path: /api/telemetry/
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 30
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: sentenialx-api-secret
+  namespace: sentenialx
+type: Opaque
+stringData:
+  API_KEY: super-secret-key
+
+---
+# -----------------------------
+# Sentenial-X GUI Deployment
+# -----------------------------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sentenialx-gui
+  namespace: sentenialx
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: sentenialx-gui
+  template:
+    metadata:
+      labels:
+        app: sentenialx-gui
+    spec:
+      containers:
+        - name: sentenialx-gui
+          image: your-docker-repo/sentenialx-gui:latest
+          ports:
+            - containerPort: 80
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 15
+            periodSeconds: 20
+
+---
+# -----------------------------
+# Services
+# -----------------------------
+apiVersion: v1
+kind: Service
+metadata:
+  name: sentenialx-api
+  namespace: sentenialx
+spec:
+  selector:
+    app: sentenialx-api
+  ports:
+    - protocol: TCP
+      port: 8000
+      targetPort: 8000
+  type: ClusterIP
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sentenialx-gui
+  namespace: sentenialx
+spec:
+  selector:
+    app: sentenialx-gui
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+  type: LoadBalancer
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sentenialx-db
+  namespace: sentenialx
+spec:
+  selector:
+    app: sentenialx-db
+  ports:
+    - protocol: TCP
+      port: 5432
+      targetPort: 5432
+  clusterIP: None
