@@ -1,4 +1,69 @@
+# agents/trace_agent.py
+import time
+import uuid
+from typing import Dict, Any, List
+from api.utils.logger import init_logger
 
+logger = init_logger("trace_agent")
+
+
+class TraceEvent:
+    """Represents a single trace event in the system."""
+
+    def __init__(self, source: str, event_type: str, severity: str = "info", data: Dict[str, Any] = None):
+        self.id = str(uuid.uuid4())
+        self.source = source
+        self.event_type = event_type
+        self.severity = severity
+        self.data = data or {}
+        self.timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "source": self.source,
+            "event_type": self.event_type,
+            "severity": self.severity,
+            "data": self.data,
+            "timestamp": self.timestamp,
+        }
+
+
+class TraceAgent:
+    """Collects and manages system trace events."""
+
+    def __init__(self):
+        self.events: List[TraceEvent] = []
+        logger.info("TraceAgent initialized")
+
+    def log_event(self, source: str, event_type: str, severity: str = "info", data: Dict[str, Any] = None) -> str:
+        """Create and store a new trace event."""
+        event = TraceEvent(source, event_type, severity, data)
+        self.events.append(event)
+        logger.info(f"TraceEvent logged: {event.to_dict()}")
+        return event.id
+
+    def get_events(self, severity_filter: str = None) -> List[Dict[str, Any]]:
+        """Retrieve all trace events, optionally filtered by severity."""
+        if severity_filter:
+            return [e.to_dict() for e in self.events if e.severity.lower() == severity_filter.lower()]
+        return [e.to_dict() for e in self.events]
+
+    def clear_events(self):
+        """Clear all stored trace events."""
+        logger.warning(f"Clearing all {len(self.events)} trace events")
+        self.events.clear()
+
+
+# Example usage
+if __name__ == "__main__":
+    agent = TraceAgent()
+    agent.log_event(source="Cortex", event_type="ThreatDetected", severity="high", data={"threat": "malware_xyz"})
+    agent.log_event(source="Orchestrator", event_type="TaskCompleted", severity="info", data={"task_id": 1234})
+
+    events = agent.get_events()
+    for e in events:
+        print(e)
 import logging
 from datetime import datetime, timedelta
 from collections import deque
