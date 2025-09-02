@@ -1,1 +1,9 @@
-
+signatures:
+  - pattern: "drop table"
+    label: "SQL Injection"
+  - pattern: "<script>"
+    label: "XSS Attack"
+  - pattern: "union select"
+    label: "SQL Injection"
+  - pattern: "wget http"
+    label: "Command Injection"
