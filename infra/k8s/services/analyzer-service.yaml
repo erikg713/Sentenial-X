@@ -1,1 +1,15 @@
-
+apiVersion: v1
+kind: Service
+metadata:
+  name: analyzer-service
+  namespace: sentenialx
+  labels:
+    app: analyzer
+spec:
+  selector:
+    app: analyzer
+  ports:
+    - protocol: TCP
+      port: 8080        # Service port inside cluster
+      targetPort: 8000  # Container port (your analyzer API)
+  type: ClusterIP       # internal only, change to LoadBalancer for external exposure
