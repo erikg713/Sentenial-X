@@ -2,7 +2,15 @@
 Sentenial‑X Configuration Package
 Provides a unified interface for loading and validating settings.
 """
+# config/__init__.py
 
+"""
+Sentenial-X Configuration Package
+---------------------------------
+Centralized configuration module for API, CLI, AI core, and dashboard components.
+"""
+
+from .settings import Settings
 from pathlib import Path
 import yaml
 
