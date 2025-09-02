@@ -1,1 +1,71 @@
+version: "3.9"
 
+services:
+  # -----------------------------
+  # Sentenial-X API Service
+  # -----------------------------
+  sentenialx-api:
+    build:
+      context: ../../
+      dockerfile: infra/docker/Dockerfile.api
+    container_name: sentenialx-api
+    restart: unless-stopped
+    environment:
+      - API_KEY=${API_KEY:-super-secret-key}
+      - HOST=0.0.0.0
+      - PORT=8000
+      - WORKERS=4
+      - DB_URL=postgresql://user:pass@db:5432/sentenialx
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+    networks:
+      - sentenialx-net
+
+  # -----------------------------
+  # Sentenial-X Dashboard GUI
+  # -----------------------------
+  sentenialx-gui:
+    build:
+      context: ../../
+      dockerfile: infra/docker/Dockerfile.gui
+    container_name: sentenialx-gui
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    networks:
+      - sentenialx-net
+    depends_on:
+      - sentenialx-api
+
+  # -----------------------------
+  # Postgres Database
+  # -----------------------------
+  db:
+    image: postgres:15-alpine
+    container_name: sentenialx-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: pass
+      POSTGRES_DB: sentenialx
+    volumes:
+      - sentenialx_db_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - sentenialx-net
+
+# -----------------------------
+# Volumes
+# -----------------------------
+volumes:
+  sentenialx_db_data:
+
+# -----------------------------
+# Networks
+# -----------------------------
+networks:
+  sentenialx-net:
+    driver: bridge
