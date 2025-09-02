@@ -8,6 +8,8 @@ Registers all available route blueprints.
 from flask import Blueprint
 from fastapi import FastAPI
 from . import health, wormgpt, cortex, telemetry, orchestrator, alerts, ws
+from . import telemetry, orchestrator, cortex, wormgpt, exploits
+from api.controllers import traces_controller
 
 def include_routes(app: FastAPI):
     app.include_router(health.router)
