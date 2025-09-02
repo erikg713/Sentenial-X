@@ -1,1 +1,27 @@
-
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: sentenialx-pv
+  namespace: sentenialx
+spec:
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: sentenialx-storage
+  hostPath:                       # For bare-metal / local dev
+    path: /mnt/data/sentenialx
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: sentenialx-pvc
+  namespace: sentenialx
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: sentenialx-storage
