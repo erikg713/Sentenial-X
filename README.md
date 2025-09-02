@@ -1,5 +1,25 @@
 # Sentenial X — The Ultimate Cyber Guardian
 
+┌─────────────┐       ┌────────────────┐       ┌───────────────┐
+│  Event/Logs │ ───▶ │ TypeScript     │ ───▶ │ WebSocket /   │
+│  Sources    │      │ Agent (libs/lib/agent.ts) │ API         │
+└─────────────┘       └────────────────┘       └───────────────┘
+                                                       │
+                                                       ▼
+                                             ┌───────────────────┐
+                                             │ Python AI Module  │
+                                             │ analyze_threat    │
+                                             │ (GPT-4.1)        │
+                                             └───────────────────┘
+                                                       │
+                                                       ▼
+                                             ┌───────────────────┐
+                                             │ Dashboard Widgets │
+                                             │ (agent_card,      │
+                                             │ telemetry_chart,  │
+                                             │ threat_panel)     │
+                                             └───────────────────┘
+
 [![License: Proprietary](https://img.shields.io/badge/license-Proprietary-dark)](#)
 [![Status: Alpha](https://img.shields.io/badge/status-ALPHA-red)](#)
 [![Mode: Beastmode](https://img.shields.io/badge/mode-beastmode-black)](#)
