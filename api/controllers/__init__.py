@@ -1,26 +1,25 @@
 """
 API Controllers Package
+-----------------------
 
-This package contains all controller modules responsible for
-handling request/response logic for the Palace of Quests backend.
+This package contains the controller modules for the Sentenial-X API.
+
+Each controller is responsible for handling business logic tied to
+specific endpoints (auth, telemetry, chain-executor, etc.).
+
+Controllers should:
+- Receive validated requests from FastAPI routes
+- Interact with database models or services
+- Return responses or raise appropriate exceptions
 """
 
-from .auth_controller import *
-from .player_controller import *
-from .quest_controller import *
-from .inventory_controller import *
-from .marketplace_controller import *
-from .transaction_controller import *
-from .battle_controller import *
-from .monitor_controller import *
+from fastapi import APIRouter
 
-__all__ = [
-    "auth_controller",
-    "player_controller",
-    "quest_controller",
-    "inventory_controller",
-    "marketplace_controller",
-    "transaction_controller",
-    "battle_controller",
-    "monitor_controller",
-] 
+# Create a global router to include all controllers
+router = APIRouter()
+
+# Import controllers here and register them with the router
+# Example:
+# from . import auth_controller, telemetry_controller
+# router.include_router(auth_controller.router, prefix="/auth", tags=["Auth"])
+# router.include_router(telemetry_controller.router, prefix="/telemetry", tags=["Telemetry"])
