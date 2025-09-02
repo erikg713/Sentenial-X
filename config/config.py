@@ -1,36 +1,51 @@
+# config/config.py
+
 """
-Sentenial‑X config/config.py
-Centralized configuration loader and validator.
+Sentenial-X Configuration Module
+--------------------------------
+Holds environment-based settings for API, CLI, AI Core, and Dashboard.
 """
 
 import os
+from dotenv import load_dotenv
 from pathlib import Path
-import yaml
 
-# Path to default config
-DEFAULT_CONFIG_PATH = Path(__file__).parent / "config.yaml"
+# Load environment variables from .env file at project root
+BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(dotenv_path=BASE_DIR / ".env")
 
-def load_defaults():
-    with open(DEFAULT_CONFIG_PATH, "r", encoding="utf-8") as f:
-        return yaml.safe_load(f)
 
-def apply_env_overrides(config):
-    # Example: override DB URL if set in environment
-    if "DB_URL" in os.environ:
-        config["database"]["url"] = os.environ["DB_URL"]
-    return config
+class Settings:
+    """Centralized configuration for Sentenial-X platform."""
 
-def validate(config):
-    required_keys = ["database", "security", "ml"]
-    for key in required_keys:
-        if key not in config:
-            raise ValueError(f"Missing required config section: {key}")
+    # API
+    API_TITLE: str = "Sentenial-X API"
+    API_VERSION: str = "1.0.0"
+    API_DESCRIPTION: str = "Production-ready API for Sentenial-X cybersecurity platform"
+    API_KEY: str = os.getenv("API_KEY", "super-secret-key")
 
-# Public API
-def get_config():
-    cfg = load_defaults()
-    cfg = apply_env_overrides(cfg)
-    validate(cfg)
-    return cfg
+    # Server
+    HOST: str = os.getenv("HOST", "0.0.0.0")
+    PORT: int = int(os.getenv("PORT", 8000))
+    WORKERS: int = int(os.getenv("WORKERS", 4))
 
-CONFIG = get_config()
+    # Database
+    DB_URI: str = os.getenv("DB_URI", "postgresql://user:pass@localhost:5432/sentenialx")
+
+    # Logging
+    LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
+
+    # CORS
+    ALLOWED_ORIGINS: list = os.getenv("ALLOWED_ORIGINS", "*").split(",")
+
+    # AI Core
+    MODEL_PATH: str = os.getenv("MODEL_PATH", str(BASE_DIR / "ai_core/models"))
+    EMBEDDING_DIM: int = int(os.getenv("EMBEDDING_DIM", 768))
+    THREAT_THRESHOLD: int = int(os.getenv("THREAT_THRESHOLD", 80))
+
+    # Dashboard
+    DASHBOARD_PORT: int = int(os.getenv("DASHBOARD_PORT", 3000))
+
+
+# Singleton instance
+settings = Settings()
