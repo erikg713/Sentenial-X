@@ -1,12 +1,17 @@
 import yaml
 import joblib
 import os
+import logging
 from typing import Dict, Any
 from .pipeline import preprocess
+from .config import Config
+
+logger = logging.getLogger("threat_engine")
+logger.setLevel(Config.LOG_LEVEL)
 
 
 class ThreatClassifier:
-    def __init__(self, model_path: str, rules_path: str):
+    def __init__(self, model_path: str = Config.MODEL_PATH, rules_path: str = Config.RULES_PATH):
         self.rules = self._load_rules(rules_path)
         self.model = self._load_model(model_path)
 
@@ -23,6 +28,8 @@ class ThreatClassifier:
         """
         Hybrid classification using rules + ML model
         """
+        logger.info(f"Classifying payload: {payload[:50]}...")
+
         # Rule-based detection
         for rule in self.rules.get("signatures", []):
             if rule["pattern"].lower() in payload.lower():
