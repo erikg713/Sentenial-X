@@ -32,3 +32,14 @@ class Settings:
 
 # Singleton instance
 settings = Settings()
+# api/config.py
+import os
+import time
+from dotenv import load_dotenv
+
+load_dotenv()
+
+API_KEY = os.getenv("API_KEY", "super-secret-key")
+START_TIME = time.time()
+DB_URI = os.getenv("DATABASE_URL", "postgresql://user:pass@localhost:5432/sentenialx")
+DEBUG = os.getenv("DEBUG", "True").lower() in ("true", "1")
