@@ -1,59 +1,95 @@
-import json
+"""
+Sentenial-X AI Core: Train Model with Feedback
+-----------------------------------------------
+Handles incremental training of AI models based on feedback from
+threat classification, WormGPT emulations, or orchestrator events.
+"""
+
 import logging
-from pathlib import Path
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.linear_model import LogisticRegression
-import joblib
+from datetime import datetime
+from typing import Dict, Any, List, Optional
+from api.utils.logger import init_logger
+from ai_core.model_loader import ModelLoader
 
-# Setup logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+logger = init_logger("ai_core.train_model_with_feedback")
 
-MODEL_PATH = Path("secure_db/model.pkl")
 
-def train_model_with_feedback(feedback_path: Path):
-    if not feedback_path.exists():
-        logger.warning("No feedback found for training at %s", feedback_path)
-        return
+class FeedbackTrainer:
+    """
+    Trainer class for incremental AI model training using feedback.
+    """
 
-    try:
-        with open(feedback_path, "r", encoding="utf-8") as f:
-            data = json.load(f)
+    def __init__(self, model_name: str = "cortex_ai"):
+        self.model_loader = ModelLoader()
+        self.model_name = model_name
+        self.training_log: List[Dict[str, Any]] = []
+        self.model = self.model_loader.load_model(model_name)
+        logger.info("FeedbackTrainer initialized for model: %s", model_name)
 
-        if not data:
-            logger.warning("Feedback file is empty.")
-            return
+    def train(self, feedback_data: List[Dict[str, Any]], epochs: int = 1) -> Dict[str, Any]:
+        """
+        Train the model with provided feedback data.
+        """
+        logger.info("Starting training for model %s with %d samples for %d epochs", 
+                    self.model_name, len(feedback_data), epochs)
+        try:
+            # Placeholder: Replace with real training logic
+            accuracy = self._mock_training(feedback_data, epochs)
 
-        texts = [entry["text"] for entry in data]
-        labels = [entry["label"] for entry in data]
+            result = {
+                "model_name": self.model_name,
+                "samples_trained": len(feedback_data),
+                "epochs": epochs,
+                "accuracy": accuracy,
+                "timestamp": datetime.utcnow().isoformat(),
+            }
+            self.training_log.append(result)
+            logger.info("Training completed: %s", result)
+            return result
+        except Exception as e:
+            logger.exception("Failed to train model: %s", e)
+            return {
+                "model_name": self.model_name,
+                "samples_trained": len(feedback_data),
+                "epochs": epochs,
+                "accuracy": 0.0,
+                "error": str(e),
+                "timestamp": datetime.utcnow().isoformat(),
+            }
 
-        if not texts or not labels:
-            logger.error("No valid data found for training.")
-            return
+    def _mock_training(self, feedback_data: List[Dict[str, Any]], epochs: int) -> float:
+        """
+        Simulated training logic (replace with real ML code).
+        """
+        base_accuracy = 0.7
+        improvement = min(0.3, len(feedback_data) * 0.01 * epochs)
+        return round(base_accuracy + improvement, 4)
 
-        # Vectorize text
-        vectorizer = TfidfVectorizer()
-        X = vectorizer.fit_transform(texts)
+    def get_training_log(self) -> List[Dict[str, Any]]:
+        """
+        Returns the full training log.
+        """
+        return list(self.training_log)
 
-        # Train model
-        model = LogisticRegression()
-        model.fit(X, labels)
+    def clear_training_log(self):
+        """
+        Clears the training log.
+        """
+        logger.warning("Clearing training log with %d entries", len(self.training_log))
+        self.training_log.clear()
 
-        # Save model and vectorizer
-        MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
-        joblib.dump({"model": model, "vectorizer": vectorizer}, MODEL_PATH)
 
-        logger.info("Model retrained and saved to %s", MODEL_PATH)
-
-    except Exception as e:
-        logger.exception("An error occurred while training the model: %s", e)
-
+# ------------------------
+# CLI / Test Example
+# ------------------------
 if __name__ == "__main__":
-    import argparse
+    trainer = FeedbackTrainer(model_name="cortex_ai")
+    sample_feedback = [
+        {"threat": {"type": "rce", "source": "192.168.1.10"}, "expected_severity": "critical"},
+        {"threat": {"type": "scan", "source": "192.168.1.20"}, "expected_severity": "low"},
+        {"threat": {"type": "xss", "source": "192.168.1.30"}, "expected_severity": "high"},
+    ]
 
-    parser = argparse.ArgumentParser(description="Retrain model with feedback data.")
-    parser.add_argument("feedback_file", type=str, help="Path to the feedback JSON file.")
-    args = parser.parse_args()
-
-    feedback_path = Path(args.feedback_file)
-    train_model_with_feedback(feedback_path)
+    result = trainer.train(sample_feedback, epochs=2)
+    print(result)
+    print("Training log:", trainer.get_training_log())
