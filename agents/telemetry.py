@@ -1,59 +1,66 @@
-# sentenial-x/agents/telemetry.py
+# agents/telemetry.py
+import psutil
 import time
-import json
-from typing import List, Dict, Optional
-from .config import LOG_BATCH_SIZE, LOG_FLUSH_INTERVAL, ENABLE_ENCRYPTION, ENCRYPTION_KEY
+from typing import Dict, Any
+from api.utils.logger import init_logger
 
-# Optional: simple symmetric encryption (for demonstration)
-from cryptography.fernet import Fernet
+logger = init_logger("telemetry_agent")
 
-# Generate key from ENCRYPTION_KEY (must be 32-byte base64)
-def get_fernet_key(key_str: str) -> bytes:
-    import base64, hashlib
-    hash_key = hashlib.sha256(key_str.encode()).digest()
-    return base64.urlsafe_b64encode(hash_key)
+class TelemetryAgent:
+    """Collects and provides system telemetry metrics for Sentenial-X."""
 
-FERNET = Fernet(get_fernet_key(ENCRYPTION_KEY)) if ENABLE_ENCRYPTION else None
+    def __init__(self, sample_interval: float = 1.0):
+        """
+        Initialize the telemetry agent.
+        :param sample_interval: Time between telemetry samples in seconds.
+        """
+        self.sample_interval = sample_interval
+        logger.info(f"TelemetryAgent initialized with interval {self.sample_interval}s")
+
+    def collect(self) -> Dict[str, Any]:
+        """Collect current telemetry metrics."""
+        try:
+            cpu_percent = psutil.cpu_percent(interval=None)
+            memory = psutil.virtual_memory()
+            disk = psutil.disk_usage('/')
+            net_io = psutil.net_io_counters()
+
+            telemetry_data = {
+                "cpu_percent": cpu_percent,
+                "memory_percent": memory.percent,
+                "memory_total": memory.total,
+                "disk_percent": disk.percent,
+                "disk_total": disk.total,
+                "network_bytes_sent": net_io.bytes_sent,
+                "network_bytes_recv": net_io.bytes_recv,
+                "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+            }
+
+            logger.debug(f"Telemetry collected: {telemetry_data}")
+            return telemetry_data
+        except Exception as e:
+            logger.error(f"Failed to collect telemetry: {e}")
+            return {}
+
+    def run(self):
+        """Continuously collect telemetry metrics (for background agent)."""
+        logger.info("TelemetryAgent started running in background mode.")
+        try:
+            while True:
+                data = self.collect()
+                # Optionally: send to API, DB, or message queue
+                # e.g., orchestrator.update_telemetry(data)
+                time.sleep(self.sample_interval)
+        except KeyboardInterrupt:
+            logger.info("TelemetryAgent stopped.")
+        except Exception as e:
+            logger.exception(f"TelemetryAgent crashed: {e}")
 
 
-class TelemetryBuffer:
-    """
-    Buffers agent logs and telemetry data.
-    Sends logs in batches or periodically.
-    """
-
-    def __init__(self, agent_id: str):
-        self.agent_id = agent_id
-        self.buffer: List[Dict] = []
-        self.last_flush_time = time.time()
-
-    def add_log(self, log: str, meta: Optional[Dict] = None):
-        entry = {
-            "timestamp": time.time(),
-            "agent_id": self.agent_id,
-            "log": log,
-            "meta": meta or {}
-        }
-        self.buffer.append(entry)
-
-        # Flush if batch full or flush interval reached
-        if len(self.buffer) >= LOG_BATCH_SIZE or (time.time() - self.last_flush_time) >= LOG_FLUSH_INTERVAL:
-            self.flush()
-
-    def flush(self):
-        if not self.buffer:
-            return
-        payload = json.dumps(self.buffer)
-        if ENABLE_ENCRYPTION and FERNET:
-            payload = FERNET.encrypt(payload.encode()).decode()
-
-        # In production, send to orchestrator via REST/gRPC
-        self._send_to_orchestrator(payload)
-
-        self.buffer.clear()
-        self.last_flush_time = time.time()
-
-    def _send_to_orchestrator(self, payload: str):
-        # Placeholder for actual network call
-        print(f"[Telemetry] Sending {len(payload)} bytes to orchestrator for agent {self.agent_id}")
-        # Example: requests.post("https://orchestrator/telemetry", data=payload)
+# Example usage
+if __name__ == "__main__":
+    agent = TelemetryAgent(sample_interval=5)
+    while True:
+        telemetry = agent.collect()
+        print(telemetry)
+        time.sleep(5)
