@@ -1,108 +1,111 @@
 # -*- coding: utf-8 -*-
 """
-Sentenial-X Alerts API
-----------------------
+Alerts API Routes for Sentenial-X
+---------------------------------
 
-Provides endpoints for managing alerts in the Sentenial-X system.
-
-Features:
-- Create new alerts
-- List active alerts
-- Filter by severity or type
-- Mark alerts as resolved
+Provides endpoints to manage alerts:
+- Create alerts
+- List & query alerts
+- Stream alerts in real-time
 """
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, Query
-from typing import List, Optional, Dict
-from uuid import uuid4
+import logging
 from datetime import datetime
+from typing import List, Optional
 
-from api.utils import api_response, api_exception, log_api_call
-from core.simulator import TelemetryCollector
+from fastapi import APIRouter, HTTPException, Query
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
 
-# ---------------------------------------------------------------------------
-# Router setup
-# ---------------------------------------------------------------------------
+from core.engine import incident_logger
+
+logger = logging.getLogger(__name__)
+
 router = APIRouter(
     prefix="/alerts",
-    tags=["alerts"]
+    tags=["Alerts"],
+    responses={404: {"description": "Not found"}},
 )
 
 # ---------------------------------------------------------------------------
-# Core telemetry/alert storage
-# ---------------------------------------------------------------------------
-telemetry_collector = TelemetryCollector()
-ALERTS_DB: List[Dict] = []
-
-# ---------------------------------------------------------------------------
-# Models (simple dict-based, production-ready can switch to DB)
-# ---------------------------------------------------------------------------
-def create_alert(alert_type: str, severity: str, message: str) -> Dict:
-    alert = {
-        "id": str(uuid4()),
-        "type": alert_type,
-        "severity": severity,
-        "message": message,
-        "timestamp": datetime.utcnow().isoformat(),
-        "resolved": False
-    }
-    ALERTS_DB.append(alert)
-    telemetry_collector.add({"alert_id": alert["id"], "type": alert_type, "severity": severity})
-    return alert
-
-# ---------------------------------------------------------------------------
-# API Endpoints
+# Models
 # ---------------------------------------------------------------------------
 
-@router.post("/")
-@log_api_call
-def post_alert(
-    alert_type: str = Query(..., description="Type of alert, e.g., 'malware', 'network'"),
-    severity: str = Query(..., description="Severity level: low, medium, high, critical"),
-    message: str = Query(..., description="Alert message")
-):
+class AlertCreateRequest(BaseModel):
+    """Request body for creating an alert manually."""
+    severity: str
+    source: str
+    description: str
+    metadata: Optional[dict] = None
+
+
+class AlertResponse(BaseModel):
+    """Response model for a single alert."""
+    id: str
+    severity: str
+    source: str
+    description: str
+    timestamp: datetime
+    metadata: Optional[dict] = None
+
+
+class AlertListResponse(BaseModel):
+    """Response model for listing alerts."""
+    alerts: List[AlertResponse]
+
+
+# ---------------------------------------------------------------------------
+# Endpoints
+# ---------------------------------------------------------------------------
+
+@router.post("/", response_model=AlertResponse)
+async def create_alert(request: AlertCreateRequest) -> AlertResponse:
     """
-    Create a new alert
+    Create a new alert (manual or system-driven).
     """
-    if severity.lower() not in {"low", "medium", "high", "critical"}:
-        api_exception(400, f"Invalid severity level: {severity}")
+    try:
+        alert = incident_logger.log_alert(
+            severity=request.severity,
+            source=request.source,
+            description=request.description,
+            metadata=request.metadata,
+        )
+        return AlertResponse(**alert)
+    except Exception as e:
+        logger.exception("Failed to create alert")
+        raise HTTPException(status_code=500, detail=f"Alert creation error: {e}")
 
-    alert = create_alert(alert_type, severity.lower(), message)
-    return api_response(alert, message="Alert created successfully")
 
-
-@router.get("/")
-@log_api_call
-def list_alerts(
+@router.get("/", response_model=AlertListResponse)
+async def list_alerts(
     severity: Optional[str] = Query(None, description="Filter by severity"),
-    resolved: Optional[bool] = Query(None, description="Filter by resolved status")
-):
+    source: Optional[str] = Query(None, description="Filter by source"),
+    limit: int = Query(50, ge=1, le=500, description="Max number of alerts to fetch"),
+) -> AlertListResponse:
     """
-    List all alerts, optionally filtered
+    List alerts with optional filtering by severity and source.
     """
-    filtered = ALERTS_DB
-    if severity:
-        filtered = [a for a in filtered if a["severity"] == severity.lower()]
-    if resolved is not None:
-        filtered = [a for a in filtered if a["resolved"] == resolved]
+    try:
+        alerts = incident_logger.fetch_alerts(severity=severity, source=source, limit=limit)
+        return AlertListResponse(alerts=[AlertResponse(**a) for a in alerts])
+    except Exception as e:
+        logger.exception("Failed to fetch alerts")
+        raise HTTPException(status_code=500, detail=f"Fetch error: {e}")
 
-    return api_response(filtered, message=f"{len(filtered)} alerts found")
 
-
-@router.post("/{alert_id}/resolve")
-@log_api_call
-def resolve_alert(alert_id: str):
+@router.get("/stream")
+async def stream_alerts():
     """
-    Mark an alert as resolved
+    Stream alerts in real-time using Server-Sent Events (SSE).
     """
-    alert = next((a for a in ALERTS_DB if a["id"] == alert_id), None)
-    if not alert:
-        api_exception(404, f"Alert with ID {alert_id} not found")
+    try:
+        async def event_generator():
+            async for alert in incident_logger.stream_alerts():
+                yield f"data: {alert}\n\n"
 
-    if alert["resolved"]:
-        return api_response(alert, message="Alert already resolved")
-
-    alert["resolved"] = True
-    return api_response(alert, message="Alert marked as resolved")
+        return StreamingResponse(event_generator(), media_type="text/event-stream")
+    except Exception as e:
+        logger.exception("Failed to stream alerts")
+        raise HTTPException(status_code=500, detail=f"Stream error: {e}")
