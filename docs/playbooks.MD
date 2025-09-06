@@ -12,3 +12,13 @@ Sentenial-X uses structured playbooks for automated emulation.
 | 1    | wormgpt_clone | Analyze adversarial AI input |
 | 2    | blind_spot_tracker | Scan detection blind spots |
 | 3    | synthetic_attack_fuzzer | Launch fuzzing attack simulation |
+
+# Playbooks & Simulators
+
+Structured playbooks for automated emulation.
+
+| Step | Simulator | Action |
+|------|-----------|--------|
+| 1    | wormgpt_clone | Analyze adversarial AI input |
+| 2    | blind_spot_tracker | Scan detection blind spots |
+| 3    | synthetic_attack_fuzzer | Launch fuzzing attack simulation |
