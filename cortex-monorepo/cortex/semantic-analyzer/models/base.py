@@ -1,21 +1,22 @@
-from pydantic import BaseModel, Field
-from typing import Dict, Any
+# -*- coding: utf-8 -*-
+"""
+Base class for semantic models in Sentenial-X
+"""
 
-class SemanticEvent(BaseModel):
-    """
-    Base model for any event processed by the semantic analyzer.
-    """
-    event_id: str
-    source: str
-    timestamp: str
-    raw_data: Dict[str, Any]
+from __future__ import annotations
+from abc import ABC, abstractmethod
+from typing import Any, Dict
 
-class AnalysisResult(BaseModel):
+
+class BaseSemanticModel(ABC):
     """
-    Standardized AI analysis output.
+    Abstract base class for semantic models.
     """
-    event_id: str
-    severity: str
-    risk_score: float = Field(..., ge=0.0, le=1.0)
-    summary: str
-    recommendations: Dict[str, Any]
+
+    @abstractmethod
+    def analyze(self, text: str) -> Dict[str, Any]:
+        """
+        Analyze text and return structured results.
+        Must be implemented by all subclasses.
+        """
+        raise NotImplementedError
