@@ -31,3 +31,14 @@ Welcome to **Sentenial-X**, the ultimate autonomous cybersecurity platform with 
 6. [Playbooks & Simulators](playbooks.md)
 7. [Contributing](contributing.md)
 8. [License](license.md)
+
+# Sentenial-X
+
+**Sentenial-X** is a next-generation autonomous cybersecurity platform for threat emulation, AI-powered detection, predictive modeling, and real-time telemetry.
+
+- **Modular AI & semantic engine**
+- **Threat simulation & playbooks**
+- **Real-time telemetry**
+- **CLI & API access**
+
+[Getting Started](installation.md)
