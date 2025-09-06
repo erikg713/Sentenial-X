@@ -1,31 +1,38 @@
- """
-Sentenial-X API Package Initialization.
+# -*- coding: utf-8 -*-
+"""
+API Package Initializer for Sentenial-X
+---------------------------------------
 
-This package exposes REST and WebSocket APIs for interacting with the
-Sentenial-X system. It handles external requests, routes, and provides
-secure access to core functionality including orchestrator, telemetry,
-and AI-driven modules.
+Provides central access to all API routes and optional global resources.
 """
 
+from __future__ import annotations
+
 from fastapi import FastAPI
+from api.routes import router as api_router
 
-# Global API app instance
-app = FastAPI(
-    title="Sentenial-X API",
-    description="REST and WebSocket APIs for the Sentenial-X cybersecurity suite.",
-    version="1.0.0"
-)
-
-# Import routes so they get registered
-try:
-    from . import routes  # noqa: F401
-except ImportError:
-    # Routes may not exist yet during initial setup
-    pass
+__all__ = ["create_app"]
 
 
-def get_app() -> FastAPI:
+def create_app(title: str = "Sentenial-X API") -> FastAPI:
     """
-    Returns the FastAPI application instance for use in ASGI servers.
+    Factory function to create and configure a FastAPI application
+    with all routes registered.
     """
+    app = FastAPI(title=title, version="1.0.0")
+
+    # Include all registered routes
+    app.include_router(api_router)
+
+    # Optional: Add middleware, exception handlers, or startup events here
+    @app.on_event("startup")
+    async def startup_event():
+        # Example: initialize telemetry collector or logging
+        import logging
+        logging.getLogger("SentenialX").info("Sentenial-X API startup complete")
+
+    @app.on_event("shutdown")
+    async def shutdown_event():
+        logging.getLogger("SentenialX").info("Sentenial-X API shutdown complete")
+
     return app
