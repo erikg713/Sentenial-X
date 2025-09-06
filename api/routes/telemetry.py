@@ -1,34 +1,40 @@
-import json
-from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import StreamingResponse
-from ..deps import secure_dep
-from ..utils import now_iso
+# -*- coding: utf-8 -*-
+"""
+Telemetry API Routes for Sentenial-X
+------------------------------------
 
-router = APIRouter(prefix="/telemetry", tags=["telemetry"])
+Exposes telemetry collection, summaries, and query endpoints.
+"""
 
-@router.get("/stream")
-async def stream(source: str, filter: str = "", _=Depends(secure_dep)):
-    """
-    Server-Sent Events (SSE) style stream for live telemetry.
-    """
-    try:
-        from cli.telemetry import Telemetry as CLITelemetry
-    except Exception as e:
-        raise HTTPException(500, f"Module import failed: {e}")
+from __future__ import annotations
 
-    telemetry = CLITelemetry()
+import logging
+from typing import Optional
 
-    async def event_generator():
-        async for evt in telemetry.stream(source=source, filter_expr=filter):
-            yield f"data: {json.dumps(evt)}\n\n"
+from fastapi import APIRouter, Query
+from pydantic import BaseModel
 
-    headers = {
-        "Cache-Control": "no-cache",
-        "Content-Type": "text/event-stream",
-        "X-Accel-Buffering": "no",
-    }
-    return StreamingResponse(event_generator(), headers=headers)
+from core.simulator import TelemetryCollector
 
-@router.get("/heartbeat")
-async def heartbeat(_=Depends(secure_dep)):
-    return {"status": "alive", "timestamp": now_iso()}
+logger = logging.getLogger(__name__)
+router = APIRouter(prefix="/telemetry", tags=["Telemetry"])
+
+collector = TelemetryCollector()
+
+
+class TelemetryResponse(BaseModel):
+    count: int
+    data: list
+
+
+@router.get("/summary", response_model=dict)
+async def telemetry_summary() -> dict:
+    """Get telemetry summary."""
+    return collector.summary()
+
+
+@router.get("/report", response_model=TelemetryResponse)
+async def telemetry_report(last_n: Optional[int] = Query(None, description="Last N entries")) -> TelemetryResponse:
+    """Get detailed telemetry report."""
+    data = collector.report(last_n=last_n)
+    return TelemetryResponse(count=len(data), data=data)
