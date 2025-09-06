@@ -1,5 +1,4 @@
-```markdown
-# Sentenial-X CLI 🤖
+### Sentenial-X CLI 🤖
 
 A small, focused command-line interface to manage the Sentenial-X AI agent. Use the CLI to start/stop the agent, send commands, broadcast messages, and check status from a terminal or service manager.
 
