@@ -1,0 +1,35 @@
+Architecture Diagram (assets/diagrams/architecture.png)
+
+Description: Visualizes the Sentenial-X pipeline.
+
+┌───────────────┐
+           │   User Input  │
+           │  (CLI / API)  │
+           └───────┬───────┘
+                   │
+                   ▼
+           ┌───────────────┐
+           │   Cortex AI   │
+           │ ┌───────────┐ │
+           │ │ TextAnalyzer│
+           │ │ Anomaly    │
+           │ │ Adversarial│
+           │ │ Predictive │
+           │ └───────────┘ │
+           └───────┬───────┘
+                   │
+                   ▼
+           ┌───────────────┐
+           │ EmulationMgr  │
+           │ ┌───────────┐ │
+           │ │ Simulators │ │
+           │ │ Playbooks  │ │
+           │ └───────────┘ │
+           └───────┬───────┘
+                   │
+                   ▼
+           ┌───────────────┐
+           │ TelemetryCol  │
+           │ Logs / Alerts │
+           └───────────────┘
+           
