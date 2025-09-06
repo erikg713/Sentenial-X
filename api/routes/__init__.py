@@ -1,29 +1,38 @@
 # -*- coding: utf-8 -*-
 """
-Sentenial-X API Routes
-----------------------
+API Routes Package Initializer for Sentenial-X
+----------------------------------------------
 
-This module aggregates all API route modules into a single
-import point for the FastAPI application.
+Imports and registers all route modules for the FastAPI application.
 """
+
+from __future__ import annotations
 
 from fastapi import APIRouter
 
-# Import route modules
-from api.routes import alerts, cortex, health, threat_api
+from . import (
+    alerts,
+    cortex,
+    emulation_manager,
+    health,
+    playbooks,
+    telemetry,
+    wormgpt,
+    orchestrator,
+    wallet,
+    debug
+)
 
-# ---------------------------------------------------------------------------
-# Router aggregation
-# ---------------------------------------------------------------------------
-api_router = APIRouter()
+router = APIRouter()
 
-# Include sub-routers
-api_router.include_router(alerts.router)
-api_router.include_router(cortex.router)
-api_router.include_router(health.router)
-api_router.include_router(threat_api.router)
-
-# ---------------------------------------------------------------------------
-# Export
-# ---------------------------------------------------------------------------
-__all__ = ["api_router"]
+# Register all route modules
+router.include_router(alerts.router)
+router.include_router(cortex.router)
+router.include_router(emulation_manager.router)
+router.include_router(health.router)
+router.include_router(playbooks.router)
+router.include_router(telemetry.router)
+router.include_router(wormgpt.router)
+router.include_router(orchestrator.router)
+router.include_router(wallet.router)
+router.include_router(debug.router)
