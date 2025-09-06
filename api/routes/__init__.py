@@ -1,33 +1,29 @@
+# -*- coding: utf-8 -*-
 """
-api/routes/__init__.py
+Sentenial-X API Routes
 ----------------------
-Route initialization for the Sentenial-X API.
-Registers all available route blueprints.
+
+This module aggregates all API route modules into a single
+import point for the FastAPI application.
 """
 
-from flask import Blueprint
-from fastapi import FastAPI
-from . import health, wormgpt, cortex, telemetry, orchestrator, alerts, ws
-from . import telemetry, orchestrator, cortex, wormgpt, exploits
-from api.controllers import traces_controller
+from fastapi import APIRouter
 
-def include_routes(app: FastAPI):
-    app.include_router(health.router)
-    app.include_router(wormgpt.router)
-    app.include_router(cortex.router)
-    app.include_router(telemetry.router)
-    app.include_router(orchestrator.router)
-    app.include_router(alerts.router)
-    app.include_router(ws.router)
 # Import route modules
-from api.routes.monitor import monitor_bp
-from api.routes.orchestrator import orchestrator_bp
+from api.routes import alerts, cortex, health, threat_api
 
-# Create the main API blueprint
-api_bp = Blueprint("api", __name__)
+# ---------------------------------------------------------------------------
+# Router aggregation
+# ---------------------------------------------------------------------------
+api_router = APIRouter()
 
-# Register sub-blueprints
-api_bp.register_blueprint(monitor_bp, url_prefix="/monitor")
-api_bp.register_blueprint(orchestrator_bp, url_prefix="/orchestrator")
+# Include sub-routers
+api_router.include_router(alerts.router)
+api_router.include_router(cortex.router)
+api_router.include_router(health.router)
+api_router.include_router(threat_api.router)
 
-__all__ = ["api_bp"] 
+# ---------------------------------------------------------------------------
+# Export
+# ---------------------------------------------------------------------------
+__all__ = ["api_router"]
