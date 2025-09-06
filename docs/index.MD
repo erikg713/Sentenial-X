@@ -15,3 +15,19 @@ This platform unifies:
 - [Training Guide](training.md)
 - [Deployment Guide](deployment.md)
 - [Contributing](contributing.md)
+# Sentenial-X Documentation
+
+Welcome to **Sentenial-X**, the ultimate autonomous cybersecurity platform with AI-powered threat emulation, semantic analysis, and predictive defense.
+
+---
+
+## Table of Contents
+
+1. [Overview](overview.md)
+2. [Installation](installation.md)
+3. [CLI Usage](cli.md)
+4. [API Reference](api.md)
+5. [Core Modules](core.md)
+6. [Playbooks & Simulators](playbooks.md)
+7. [Contributing](contributing.md)
+8. [License](license.md)
