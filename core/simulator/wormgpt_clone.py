@@ -1,103 +1,96 @@
+# core/simulator/wormgpt_clone.py
+# -*- coding: utf-8 -*-
 """
-WormGPT Clone Simulator
------------------------
+WormGPT Clone (simulator)
+-------------------------
 
-This module emulates the behavior of adversarial AI-powered malware
-used in red team simulations. It is **not an actual malicious model**,
-but a controlled simulator for training, research, and defense testing.
-
-Features:
-- Prompt injection + jailbreak emulation
-- Malicious text generation simulation
-- Payload crafting stubs (for safe emulation only)
-- Logging and telemetry hooks
+Safe, controlled emulation of an adversarial generation agent. Produces
+non-actionable, synthetic "malicious-style" outputs for detection/testing.
 """
+
+from __future__ import annotations
 
 import logging
 import random
 import time
-from typing import Dict, Any
+from typing import Any, Dict, List, Optional
+
+from . import BaseSimulator
+
+_logger = logging.getLogger("SentenialX.Simulator.WormGPTClone")
+if not _logger.handlers:
+    _logger.addHandler(logging.NullHandler())
 
 
-class WormGPTClone:
-    """
-    Simulated WormGPT-like agent for adversarial testing.
-    Produces emulated malicious outputs in a safe sandbox.
-    """
-
-    def __init__(self, seed: int | None = None):
-        self.logger = logging.getLogger("SentenialX.WormGPTClone")
+class WormGPTClone(BaseSimulator):
+    def __init__(self, seed: Optional[int] = None, name: str | None = None) -> None:
+        super().__init__(name=name or "WormGPTClone")
         self.random = random.Random(seed)
-        self.session_active = False
 
-    def start_session(self) -> None:
-        """Begin a simulated WormGPT session."""
-        if self.session_active:
-            self.logger.warning("Session already active.")
-            return
-        self.session_active = True
-        self.logger.info("WormGPT Clone session started.")
+    def start(self) -> None:
+        super().start()
+        self.random.seed(int(time.time()) if self.random.seed is None else None)  # keep deterministic when seed provided
 
-    def end_session(self) -> None:
-        """End the active session."""
-        if not self.session_active:
-            self.logger.warning("No active session.")
-            return
-        self.session_active = False
-        self.logger.info("WormGPT Clone session terminated.")
-
-    def generate(self, prompt: str, mode: str = "malware") -> str:
+    def run(self, prompt: str = "simulate", mode: str = "malware", max_events: int = 3) -> Dict[str, Any]:
         """
-        Simulate malicious text/code generation.
+        Run one generation cycle.
 
         Args:
-            prompt: Input string for the adversarial AI.
-            mode: Type of simulation ["malware", "phishing", "payload"]
+            prompt: input string (used only for telemetry/metadata)
+            mode: 'malware' | 'phishing' | 'payload'
+            max_events: upper bound for generated events
 
         Returns:
-            A fake but realistic looking malicious output (safe).
+            dict with structured simulated results
         """
-        if not self.session_active:
-            raise RuntimeError("Start a session before generating output.")
+        if not self.active:
+            self.logger = logging.getLogger(f"SentenialX.Simulator.{self.name}")
+            raise RuntimeError("Simulator not started; call .start() before .run()")
 
-        self.logger.debug("Generating output for mode=%s prompt=%s", mode, prompt[:50])
-
-        simulated_outputs = {
+        timestamp = time.time()
+        # safe, non-actionable templates
+        templates = {
             "malware": [
-                "def exploit_target():\n    print('Simulated exploit triggered.')",
-                "echo '[SIMULATED] Reverse shell established...'",
+                "print('SIMULATED: exploit placeholder')",
+                "logger.info('simulated harmful action — inert')",
             ],
             "phishing": [
-                "Dear user, please verify your account credentials at http://fake-login.local",
-                "URGENT: Update your payment details now to avoid service disruption.",
+                "Dear user, confirm your account at https://example.invalid/verify",
+                "Your invoice is overdue — visit https://example.invalid/pay",
             ],
             "payload": [
-                "[PAYLOAD: {encoded_base64_payload}]",
-                "[PAYLOAD: {encrypted_stub_payload}]",
+                "[PAYLOAD:BASE64_SIMULATED==]",
+                "[PAYLOAD:ENCRYPTED_SIMULATED_STUB]",
             ],
         }
 
-        candidates = simulated_outputs.get(mode, ["[UNKNOWN MODE]"])
-        output = self.random.choice(candidates)
+        choices: List[str] = templates.get(mode, ["[SIMULATED]"])
+        events: List[Dict[str, Any]] = []
+        count = max(1, min(10, int(max_events)))
 
-        # Artificial "thinking" delay
-        time.sleep(self.random.uniform(0.1, 0.4))
+        for i in range(self.random.randint(1, count)):
+            ev = {
+                "id": f"{self.name}-{int(timestamp)}-{i}",
+                "type": "simulated_generation",
+                "mode": mode,
+                "content": self.random.choice(choices),
+                "confidence": round(self.random.uniform(0.2, 0.95), 2),
+            }
+            events.append(ev)
 
-        return f"[SIMULATED-{mode.upper()}] {output}"
+        severity = 3 + min(len(events), 7) // 1  # conservative severity mapping
+
+        result = {
+            "name": self.name,
+            "timestamp": timestamp,
+            "prompt_summary": (prompt[:200] + "...") if len(prompt) > 200 else prompt,
+            "mode": mode,
+            "events": events,
+            "severity": int(min(10, severity)),
+        }
+        return result
 
     def telemetry(self) -> Dict[str, Any]:
-        """Return session telemetry for monitoring and dashboards."""
-        return {
-            "active": self.session_active,
-            "timestamp": time.time(),
-            "session_entropy": self.random.random(),
-        }
-
-
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
-    worm = WormGPTClone(seed=42)
-    worm.start_session()
-    print(worm.generate("How to hack a system?", mode="phishing"))
-    print(worm.telemetry())
-    worm.end_session()
+        base = super().telemetry()
+        base.update({"agent_seed_state": None})
+        return base
