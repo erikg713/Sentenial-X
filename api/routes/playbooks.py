@@ -1,61 +1,109 @@
-from flask import Blueprint, request, jsonify
-from utils.siem import push_to_siem
+# -*- coding: utf-8 -*-
+"""
+Attack Playbook API Routes for Sentenial-X
+------------------------------------------
 
-playbooks_bp = Blueprint('playbooks', __name__)
+Exposes endpoints to create, list, and run attack playbooks,
+allowing orchestration of multiple simulation steps.
+"""
 
-# In-memory store for demo (replace with DB in production)
-playbooks_store = []
+from __future__ import annotations
 
-@playbooks_bp.route('/', methods=['POST'])
-def create_playbook():
+import logging
+from datetime import datetime
+from typing import List, Optional
+
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
+
+from core.simulator.attack_playbook import Playbook, create_playbook, execute_playbook, list_playbooks
+
+logger = logging.getLogger(__name__)
+router = APIRouter(prefix="/playbooks", tags=["Playbooks"])
+
+
+# ---------------------------------------------------------------------------
+# Models
+# ---------------------------------------------------------------------------
+
+class PlaybookRequest(BaseModel):
+    name: Optional[str] = None
+    steps: Optional[List[str]] = None
+
+
+class PlaybookResponse(BaseModel):
+    id: str
+    name: str
+    steps: List[str]
+    status: str
+    executed_at: Optional[datetime] = None
+
+
+class PlaybookListResponse(BaseModel):
+    total: int
+    playbooks: List[PlaybookResponse]
+
+
+# ---------------------------------------------------------------------------
+# Endpoints
+# ---------------------------------------------------------------------------
+
+@router.post("/create", response_model=PlaybookResponse)
+async def create_new_playbook(request: PlaybookRequest) -> PlaybookResponse:
     """
-    Create a new playbook with a name, description, and list of steps.
-    Each step could be an action like isolate_host, block_ip, send_alert, etc.
+    Create a new attack playbook.
     """
-    data = request.get_json()
-    required_fields = ['name', 'description', 'steps']
-    if not all(field in data for field in required_fields):
-        return jsonify({'message': 'Missing required fields'}), 400
+    try:
+        pb = create_playbook(name=request.name, steps=request.steps)
+        logger.info("Created playbook: %s", pb.name)
+        return PlaybookResponse(
+            id=pb.id,
+            name=pb.name,
+            steps=[s.id for s in pb.steps],
+            status="created"
+        )
+    except Exception as e:
+        logger.exception("Failed to create playbook")
+        raise HTTPException(status_code=500, detail=str(e))
 
-    playbook = {
-        'id': len(playbooks_store) + 1,
-        'name': data['name'],
-        'description': data['description'],
-        'steps': data['steps']
-    }
-    playbooks_store.append(playbook)
-    return jsonify({'message': 'Playbook created', 'playbook': playbook}), 201
 
-@playbooks_bp.route('/', methods=['GET'])
-def list_playbooks():
-    """List all stored playbooks."""
-    return jsonify(playbooks_store), 200
-
-@playbooks_bp.route('/<int:playbook_id>', methods=['GET'])
-def get_playbook(playbook_id):
-    """Retrieve a specific playbook by its ID."""
-    for pb in playbooks_store:
-        if pb['id'] == playbook_id:
-            return jsonify(pb), 200
-    return jsonify({'message': 'Playbook not found'}), 404
-
-@playbooks_bp.route('/execute/<int:playbook_id>', methods=['POST'])
-def execute_playbook(playbook_id):
+@router.get("/list", response_model=PlaybookListResponse)
+async def list_all_playbooks() -> PlaybookListResponse:
     """
-    Simulate executing a playbook.
-    In production: integrate with SOAR to run these actions for real.
+    List all existing attack playbooks.
     """
-    for pb in playbooks_store:
-        if pb['id'] == playbook_id:
-            execution_log = []
-            for step in pb['steps']:
-                # This is where each action would be triggered
-                execution_log.append(f"Executed step: {step}")
-                # Optional: push execution event to SIEM
-                push_to_siem({'action': step, 'playbook': pb['name']}, risk_score=0)
+    try:
+        pbs: List[Playbook] = list_playbooks()
+        response = [
+            PlaybookResponse(
+                id=pb.id,
+                name=pb.name,
+                steps=[s.id for s in pb.steps],
+                status="ready"
+            )
+            for pb in pbs
+        ]
+        return PlaybookListResponse(total=len(response), playbooks=response)
+    except Exception as e:
+        logger.exception("Failed to list playbooks")
+        raise HTTPException(status_code=500, detail=str(e))
 
-            return jsonify({
-                'message': f'Playbook {pb["name"]} executed',
-                'execution_log': execution_log
-            }), 200
-    return jsonify({'message': 'Playbook not found'}), 404
+
+@router.post("/execute/{playbook_id}", response_model=PlaybookResponse)
+async def execute_existing_playbook(playbook_id: str) -> PlaybookResponse:
+    """
+    Execute a playbook by its ID.
+    """
+    try:
+        pb = execute_playbook(playbook_id)
+        logger.info("Executed playbook: %s", pb.name)
+        return PlaybookResponse(
+            id=pb.id,
+            name=pb.name,
+            steps=[s.id for s in pb.steps],
+            status="executed",
+            executed_at=datetime.utcnow()
+        )
+    except Exception as e:
+        logger.exception("Failed to execute playbook")
+        raise HTTPException(status_code=500, detail=str(e))
