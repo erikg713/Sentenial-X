@@ -1,140 +1,102 @@
+# core/simulator/synthetic_attack_fuzzer.py
+# -*- coding: utf-8 -*-
 """
 Synthetic Attack Fuzzer
 -----------------------
 
-Part of the Sentenial-X simulator subsystem.
-
-This module generates *synthetic attack payloads* that mimic fuzzing attempts,
-protocol abuses, and evasive sequences. It is safe for research/testing use
-and does not contain any real malicious exploit code.
-
-Features:
-- Random payload generator (HTTP, SQLi-like, XSS-like, binary junk, etc.)
-- Configurable fuzzing sessions
-- Telemetry export for dashboards
-- Logging integration
+Generates safe, synthetic fuzzing payloads for testing detection and parsing logic.
 """
+
+from __future__ import annotations
 
 import logging
 import random
 import string
 import time
-from typing import Dict, Any, List
+from typing import Any, Dict, List, Optional
+
+from . import BaseSimulator
+
+_logger = logging.getLogger("SentenialX.Simulator.SyntheticAttackFuzzer")
+if not _logger.handlers:
+    _logger.addHandler(logging.NullHandler())
 
 
-class SyntheticAttackFuzzer:
-    """Controlled synthetic attack fuzzer for safe red-team simulation."""
-
-    PAYLOAD_TEMPLATES = {
+class SyntheticAttackFuzzer(BaseSimulator):
+    DEFAULT_TEMPLATES = {
         "http": [
             "GET /{junk} HTTP/1.1\r\nHost: example.local\r\n\r\n",
-            "POST /login HTTP/1.1\r\nHost: example.local\r\nContent-Length: 20\r\n\r\nuser={junk}&pass=123",
+            "POST /login HTTP/1.1\r\nHost: example.local\r\nContent-Length: {len}\r\n\r\nuser={junk}&pass=123",
         ],
         "sql_injection": [
-            "' OR '1'='1 -- ",
-            "'; DROP TABLE users; --",
+            "' OR '1'='1' -- ",
+            "'; -- [SIMULATED]",
             "admin'/*{junk}*/'--",
         ],
         "xss": [
-            "<script>alert('{junk}')</script>",
-            "<img src=x onerror=alert('{junk}')>",
+            "<script>console.log('{junk}')</script>",
+            "<img src=x onerror=console.log('{junk}')>",
         ],
         "binary": [
-            "".join(chr(random.randint(0, 255)) for _ in range(16)),
-            "".join(chr(random.randint(0, 255)) for _ in range(32)),
+            None,  # replaced programmatically
         ],
     }
 
-    def __init__(self, seed: int | None = None):
-        self.logger = logging.getLogger("SentenialX.SyntheticAttackFuzzer")
+    def __init__(self, seed: Optional[int] = None, name: str | None = None) -> None:
+        super().__init__(name=name or "SyntheticAttackFuzzer")
         self.random = random.Random(seed)
-        self.active = False
         self.history: List[Dict[str, Any]] = []
 
-    def start(self) -> None:
-        """Begin fuzzing session."""
-        if self.active:
-            self.logger.warning("Fuzzer session already active.")
-            return
-        self.active = True
-        self.logger.info("Synthetic Attack Fuzzer started.")
-
-    def stop(self) -> None:
-        """Stop fuzzing session."""
-        if not self.active:
-            self.logger.warning("No active fuzzer session.")
-            return
-        self.active = False
-        self.logger.info("Synthetic Attack Fuzzer stopped.")
+    def _mk_junk(self, length: int = 12) -> str:
+        return "".join(self.random.choices(string.ascii_letters + string.digits, k=length))
 
     def generate_payload(self, category: str = "http") -> str:
-        """
-        Generate a synthetic attack payload for the given category.
+        tmpl_list = self.DEFAULT_TEMPLATES.get(category, [])
+        if not tmpl_list:
+            return "[UNKNOWN_CATEGORY]"
 
-        Args:
-            category: One of ["http", "sql_injection", "xss", "binary"]
+        tmpl = self.random.choice(tmpl_list)
+        if tmpl is None:
+            # generate binary-like safe placeholder
+            payload = "".join(chr(self.random.randint(32, 126)) for _ in range(16))
+        else:
+            junk = self._mk_junk(10)
+            payload = tmpl.format(junk=junk, len=len(junk) + 10)
+
+        record = {"timestamp": time.time(), "category": category, "payload": payload}
+        self.history.append(record)
+        return payload
+
+    def run(self, categories: List[str] | None = None, count: int = 5) -> Dict[str, Any]:
+        """
+        Generate `count` payloads across the given categories.
 
         Returns:
-            Synthetic payload string
+            structured dict with list of generated payloads and basic scoring.
         """
         if not self.active:
-            raise RuntimeError("Start the fuzzer before generating payloads.")
+            raise RuntimeError("Simulator not started; call .start() first")
 
-        self.logger.debug("Generating payload for category=%s", category)
-
-        template_list = self.PAYLOAD_TEMPLATES.get(category, [])
-        if not template_list:
-            return "[UNKNOWN CATEGORY]"
-
-        template = self.random.choice(template_list)
-        junk = "".join(self.random.choices(string.ascii_letters + string.digits, k=8))
-        payload = template.replace("{junk}", junk)
-
-        record = {
-            "timestamp": time.time(),
-            "category": category,
-            "payload": payload,
-        }
-        self.history.append(record)
-
-        return f"[FUZZ-{category.upper()}] {payload}"
-
-    def fuzz_cycle(self, categories: List[str] | None = None, count: int = 5) -> List[str]:
-        """
-        Run a cycle of fuzzing payloads across categories.
-
-        Args:
-            categories: List of categories to fuzz (default: all)
-            count: Number of payloads to generate
-
-        Returns:
-            List of generated payloads
-        """
         if categories is None:
-            categories = list(self.PAYLOAD_TEMPLATES.keys())
+            categories = list(self.DEFAULT_TEMPLATES.keys())
 
-        outputs = []
-        for _ in range(count):
+        outputs: List[Dict[str, Any]] = []
+        for _ in range(max(1, int(count))):
             cat = self.random.choice(categories)
-            outputs.append(self.generate_payload(cat))
-            time.sleep(self.random.uniform(0.05, 0.2))  # mimic fuzz pacing
-        return outputs
+            payload = self.generate_payload(cat)
+            outputs.append({"category": cat, "payload_summary": payload[:400], "timestamp": time.time()})
+            time.sleep(self.random.uniform(0.01, 0.05))  # small pacing
+
+        severity = 1 + min(len(outputs) // 2, 8)
+        return {
+            "name": self.name,
+            "timestamp": time.time(),
+            "generated": outputs,
+            "history_size": len(self.history),
+            "severity": int(severity),
+        }
 
     def telemetry(self) -> Dict[str, Any]:
-        """Export fuzzing session telemetry."""
-        return {
-            "active": self.active,
-            "history_size": len(self.history),
-            "last_payload": self.history[-1] if self.history else None,
-            "timestamp": time.time(),
-        }
-
-
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
-    fuzzer = SyntheticAttackFuzzer(seed=1337)
-    fuzzer.start()
-    print(fuzzer.generate_payload("sql_injection"))
-    print(fuzzer.fuzz_cycle(count=3))
-    print(fuzzer.telemetry())
-    fuzzer.stop()
+        t = super().telemetry()
+        t.update({"history_size": len(self.history)})
+        return t
