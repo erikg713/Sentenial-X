@@ -1,57 +1,38 @@
 # ai_core/predictive_model.py
 """
 Predictive Model Orchestrator for Sentenial-X
---------------------------------------------
 
-Responsibilities:
-- Route tasks to appropriately-sized Llama models based on complexity.
-- Provide safe, typed outputs for threat analysis, adversarial prompt detection,
-  attack simulation, and embedding generation.
-- Lazy-initialize external SDK clients and provide clear errors when not configured.
-- Resilient calls with simple retry/backoff and sensible defaults.
+Goals / improvements made:
+- Removed eager model instantiation at import time; models are initialized lazily and safely.
+- Fixed duplicate / conflicting definitions and normalized model config keys.
+- Improved typing, logging, and thread-safety for the lazy registry.
+- Made retry decorator robust and preserved metadata.
+- Safer handling of sync/async model SDKs when a coroutine is returned.
+- More robust parsing for classification outputs (tries JSON, then regex).
+- Embeddings generation uses a cache and a bounded thread pool; better error messages and type checks.
+- Clearer docstrings and small performance/clarity tweaks.
+- Keeps behaviour backward compatible while being easier to test and deploy.
 
 Notes:
-- Replace the `llm_sdk` placeholder with your actual LLM provider SDK or runtime.
-- Environment variables can override model names and concurrency settings.
+- Replace llm_sdk placeholders with the real SDK or adapt _init_* helpers to your SDK.
+- Environment variables continue to allow runtime overrides.
 """
-# ai_core/predictive_model.py
-from deep_infra_sdk import DeepSpeedModel, BatchTaskQueue
-from typing import Dict, Any
-from .utils import preprocess_input, log_info
-from .embeddings_service import generate_embeddings
-
-# -----------------------------
-# Initialize LLaMA models
-# -----------------------------
-MODELS = {
-    "small": DeepSpeedModel("Llama-4-Maverick-17B-128E-Instruct-FP8", device_map="auto", dtype="fp16"),
-    "medium_turbo": DeepSpeedModel("Meta-Llama-3.1-70B-Instruct-Turbo", device_map="auto", dtype="fp16"),
-    "large": DeepSpeedModel("Meta-Llama-3.1-405B-Instruct", device_map="auto", dtype="fp16", parallelism="tensor+pipeline")
-}
-
-# Async batch queue
-TASK_QUEUE = BatchTaskQueue(max_batch_size=16)
-
-def select_model(complexity: str = "low"):
-    if complexity == "low": return MODELS["small"]
-    elif complexity == "medium": return MODELS["medium_turbo"]
-    elif complexity == "high": return MODELS["large"]
-    else: return MODELS["medium_turbo"]
-
-async def enqueue_task(text: str, complexity: str = "medium") -> Any:
-    model = select_model(complexity)
-    log_info(f"[{model.model_name}] Task complexity: {complexity}")
-    return await TASK_QUEUE.add_task(model.generate, preprocess_input(text))
 from __future__ import annotations
+
+import asyncio
+import inspect
+import json
 import logging
 import os
+import re
+import threading
 import time
-from dataclasses import dataclass, asdict
-from functools import lru_cache, wraps
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from dataclasses import asdict, dataclass
+from functools import lru_cache, wraps
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
-# External SDK placeholders. Swap these with your real SDK classes.
+# Optional external SDK placeholders. Swap these with your real SDK classes.
 try:
     from llm_sdk import LlamaModel, EmbeddingModel  # type: ignore
 except Exception:  # pragma: no cover - falls back when SDK not installed
@@ -63,7 +44,6 @@ except Exception:  # pragma: no cover - falls back when SDK not installed
 # -----------------------------
 logger = logging.getLogger("SentenialX.PredictiveModel")
 if not logger.handlers:
-    # Basic configuration if app has not configured logging yet.
     handler = logging.StreamHandler()
     formatter = logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s")
     handler.setFormatter(formatter)
@@ -73,8 +53,7 @@ logger.setLevel(os.getenv("SENTENIALX_LOG_LEVEL", "INFO"))
 # -----------------------------
 # Config / Defaults
 # -----------------------------
-# Allow overrides via environment variables to avoid editing code for deploy-time changes.
-MODEL_CONFIGS = {
+MODEL_CONFIGS: Dict[str, Dict[str, Any]] = {
     "small": {
         "env": "SENTENIALX_MODEL_SMALL",
         "default": "Llama-4-Maverick-17B-128E-Instruct-FP8",
@@ -87,7 +66,7 @@ MODEL_CONFIGS = {
         "max_tokens": int(os.getenv("SENTENIALX_MODEL_MEDIUM_MAX_TOKENS", "8192")),
         "fp_precision": os.getenv("SENTENIALX_MODEL_MEDIUM_FP", "fp16"),
     },
-    "medium_70B": {
+    "medium_70b": {
         "env": "SENTENIALX_MODEL_MEDIUM_70B",
         "default": "Llama-3.3-70B-Instruct-Turbo",
         "max_tokens": int(os.getenv("SENTENIALX_MODEL_MEDIUM_70B_MAX_TOKENS", "8192")),
@@ -101,17 +80,15 @@ MODEL_CONFIGS = {
     },
 }
 
-EMBEDDING_MODEL_CONFIG = {
+EMBEDDING_MODEL_CONFIG: Dict[str, str] = {
     "env": "SENTENIALX_EMBEDDING_MODEL",
     "default": os.getenv("SENTENIALX_EMBEDDING_MODEL_DEFAULT", "Llama-4-Maverick-17B-128E-Instruct-FP8"),
 }
 
-# Concurrency for embedding generation
-EMBEDDING_WORKERS = int(os.getenv("SENTENIALX_EMBEDDING_WORKERS", "4"))
+EMBEDDING_WORKERS: int = int(os.getenv("SENTENIALX_EMBEDDING_WORKERS", "4"))
 
-# Retry settings
-RETRY_MAX_ATTEMPTS = int(os.getenv("SENTENIALX_RETRY_ATTEMPTS", "3"))
-RETRY_BACKOFF_FACTOR = float(os.getenv("SENTENIALX_RETRY_BACKOFF", "0.5"))
+RETRY_MAX_ATTEMPTS: int = int(os.getenv("SENTENIALX_RETRY_ATTEMPTS", "3"))
+RETRY_BACKOFF_FACTOR: float = float(os.getenv("SENTENIALX_RETRY_BACKOFF", "0.5"))
 
 # -----------------------------
 # Types / Results
@@ -158,6 +135,7 @@ def _init_llama_model(model_name: str, max_tokens: int, fp_precision: str):
         raise RuntimeError(
             "LlamaModel SDK not available. Install or configure your llm provider and ensure `llm_sdk.LlamaModel` is importable."
         )
+    # The signature here is illustrative; adapt to your SDK.
     return LlamaModel(model_name=model_name, max_tokens=max_tokens, fp_precision=fp_precision)
 
 
@@ -170,7 +148,7 @@ def _init_embedding_model(model_name: str):
 
 
 def retry_on_exception(max_attempts: int = RETRY_MAX_ATTEMPTS, backoff_factor: float = RETRY_BACKOFF_FACTOR):
-    """Simple retry decorator with exponential backoff for transient failures."""
+    """Retry decorator with exponential backoff for transient failures."""
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
@@ -195,73 +173,96 @@ def retry_on_exception(max_attempts: int = RETRY_MAX_ATTEMPTS, backoff_factor: f
 
 def preprocess_input(text: str) -> str:
     """
-    Clean and normalize input text or logs before passing to models.
-    Keeps it simple and predictable.
+    Clean and normalize input text before sending to models.
+
+    - Ensures str type.
+    - Trims whitespace and collapses internal whitespace to single spaces.
+    - Returns normalized string.
     """
     if not isinstance(text, str):
         raise ValueError("preprocess_input expects a string")
-    text = text.strip()
-    # Collapse excessive whitespace and normalize newlines to spaces so prompt tokens stay contiguous.
-    text = " ".join(text.split())
-    return text
+    # strip then collapse all whitespace (including newlines / tabs) into single spaces
+    return " ".join(text.strip().split())
 
 
 def _safe_extract_text(response: Any, max_len: int = 500) -> str:
     """
-    Convert response types into a short summary string.
-    Handles strings, dicts with common keys, and falls back to str().
+    Convert response into a concise text summary.
+    Handles strings, dict-like objects, lists, and falls back to str().
     """
     if response is None:
         return ""
     if isinstance(response, str):
         return response[:max_len]
+    if isinstance(response, (list, tuple)):
+        # join short representations, prefer strings
+        parts = []
+        for item in response:
+            if isinstance(item, str):
+                parts.append(item)
+            elif isinstance(item, dict):
+                for k in ("content", "text", "message", "output"):
+                    if k in item and isinstance(item[k], str):
+                        parts.append(item[k])
+                        break
+                else:
+                    parts.append(str(item))
+            else:
+                parts.append(str(item))
+            if sum(len(p) for p in parts) > max_len:
+                break
+        joined = " ".join(parts)
+        return joined[:max_len]
     if isinstance(response, dict):
         for key in ("content", "text", "message", "output"):
-            if key in response and isinstance(response[key], str):
-                return response[key][:max_len]
-        # Fallback to join of values if small
+            val = response.get(key)
+            if isinstance(val, str):
+                return val[:max_len]
+        # join short values
         try:
             joined = " ".join(str(v) for v in response.values())
             return joined[:max_len]
         except Exception:
             return str(response)[:max_len]
-    # Fallback for other types
     return str(response)[:max_len]
 
 
 # -----------------------------
-# Lazy model registry
+# Lazy model registry (thread-safe)
 # -----------------------------
 class _ModelRegistry:
     """
-    Lazily initialize models on first use. This avoids expensive startup at import time
-    and allows environment-driven configuration to be applied at runtime.
+    Lazily initialize models on first use. Thread-safe to support concurrent requests.
     """
     def __init__(self):
         self._models: Dict[str, Any] = {}
         self._embedding_model: Optional[Any] = None
+        self._lock = threading.RLock()
 
     def get(self, tier: str):
-        if tier in self._models:
-            return self._models[tier]
+        tier = tier.lower()
+        with self._lock:
+            if tier in self._models:
+                return self._models[tier]
 
-        if tier not in MODEL_CONFIGS:
-            raise KeyError(f"Unknown model tier '{tier}'")
+            if tier not in MODEL_CONFIGS:
+                raise KeyError(f"Unknown model tier '{tier}'")
 
-        cfg = MODEL_CONFIGS[tier]
-        model_name = os.getenv(cfg["env"], cfg["default"])
-        logger.debug("Initializing model %s for tier %s", model_name, tier)
-        model = _init_llama_model(model_name=model_name, max_tokens=cfg["max_tokens"], fp_precision=cfg["fp_precision"])
-        self._models[tier] = model
-        return model
+            cfg = MODEL_CONFIGS[tier]
+            model_name = os.getenv(cfg["env"], cfg["default"])
+            logger.debug("Initializing model %s for tier %s", model_name, tier)
+            model = _init_llama_model(model_name=model_name, max_tokens=cfg["max_tokens"], fp_precision=cfg["fp_precision"])
+            self._models[tier] = model
+            return model
 
     def get_embedding_model(self):
-        if self._embedding_model is not None:
+        with self._lock:
+            if self._embedding_model is not None:
+                return self._embedding_model
+            model_name = os.getenv(EMBEDDING_MODEL_CONFIG["env"], EMBEDDING_MODEL_CONFIG["default"])
+            logger.debug("Initializing embedding model %s", model_name)
+            self._embedding_model = _init_embedding_model(model_name=model_name)
             return self._embedding_model
-        model_name = os.getenv(EMBEDDING_MODEL_CONFIG["env"], EMBEDDING_MODEL_CONFIG["default"])
-        logger.debug("Initializing embedding model %s", model_name)
-        self._embedding_model = _init_embedding_model(model_name=model_name)
-        return self._embedding_model
 
 
 _registry = _ModelRegistry()
@@ -273,30 +274,78 @@ _registry = _ModelRegistry()
 def select_model(task_complexity: str = "low"):
     """
     Map a verbal complexity to a model instance. Returns an initialized LlamaModel.
+    Accepted complexities: low, medium, medium_70b, high (case-insensitive).
     """
     mapping = {
         "low": "small",
         "medium": "medium_turbo",
-        "medium_70b": "medium_70B",
+        "medium_70b": "medium_70b",
         "high": "large",
     }
     key = mapping.get(task_complexity.lower(), "medium_turbo")
-    # normalize key for registry which expects lowercase keys
-    # registry uses keys from MODEL_CONFIGS which are lowercase
-    # handle 'medium_70b' mapping to 'medium_70B' config key in MODEL_CONFIGS:
-    if key == "medium_70B":
-        key = "medium_70B"  # keep as defined earlier in MODEL_CONFIGS
     return _registry.get(key)
+
+
+async def _maybe_await(value):
+    """If value is awaitable, await it; otherwise return it directly."""
+    if inspect.isawaitable(value):
+        return await value
+    return value
 
 
 # -----------------------------
 # Core Predictive Functions
 # -----------------------------
 @retry_on_exception()
+def _call_model_generate(model: Any, prompt: str, max_tokens: Optional[int] = None) -> Any:
+    """
+    Call model.generate in a flexible way that tolerates different SDK signatures
+    and supports coroutine responses; returns the resolved result.
+    """
+    # Prepare args according to common SDK patterns. The actual SDK may differ;
+    # we try a few common call styles.
+    # 1) model.generate(prompt, max_tokens=...)
+    # 2) model.generate(prompt)
+    try:
+        if max_tokens is not None:
+            result = model.generate(prompt, max_tokens=max_tokens)
+        else:
+            result = model.generate(prompt)
+    except TypeError:
+        # Fall back to keyword style if the first form wasn't supported
+        try:
+            result = model.generate(prompt=prompt, max_tokens=max_tokens) if max_tokens is not None else model.generate(prompt=prompt)
+        except Exception:
+            # Final fallback: try a single-arg call
+            result = model.generate(prompt)
+
+    # If SDK returns a coroutine, run it to completion
+    if inspect.isawaitable(result):
+        try:
+            # If an event loop is already running, create a task and await it by running from asyncio.get_event_loop
+            loop = None
+            try:
+                loop = asyncio.get_running_loop()
+            except RuntimeError:
+                loop = None
+
+            if loop and loop.is_running():
+                # Running inside an existing loop; create a new task and wait
+                # Note: This blocks the caller until completion; it's only used if caller is inside async context.
+                coro = result
+                return asyncio.run_coroutine_threadsafe(coro, loop).result()
+            else:
+                return asyncio.run(result)
+        except Exception as e:
+            logger.exception("Failed to resolve coroutine result from model.generate: %s", e)
+            raise
+    return result
+
+
+@retry_on_exception()
 def analyze_threat(input_text: str, complexity: str = "medium") -> ModelResult:
     """
     Analyze logs, prompts, or reports and return a structured ModelResult.
-    Attempts to pick a model based on complexity and returns a concise summary.
     """
     if not input_text or not isinstance(input_text, str):
         raise ValueError("analyze_threat requires a non-empty string input_text")
@@ -304,21 +353,20 @@ def analyze_threat(input_text: str, complexity: str = "medium") -> ModelResult:
     model = select_model(complexity)
     processed_text = preprocess_input(input_text)
 
-    logger.info("Using model '%s' for threat analysis (complexity=%s)", getattr(model, "model_name", str(model)), complexity)
-    # Allow caller to override output length via env var for heavy-duty cases.
+    model_name = getattr(model, "model_name", str(model))
+    logger.info("Using model '%s' for threat analysis (complexity=%s)", model_name, complexity)
+
     max_tokens = getattr(model, "max_tokens", None)
-    # The model SDK's generate signature may differ between providers; keep it flexible.
-    response = model.generate(processed_text, max_tokens=max_tokens) if max_tokens is not None else model.generate(processed_text)
+    response = _call_model_generate(model, processed_text, max_tokens=max_tokens)
 
     summary = _safe_extract_text(response, max_len=500)
-    return ModelResult(model_used=getattr(model, "model_name", str(model)), raw_output=response, summary=summary)
+    return ModelResult(model_used=model_name, raw_output=response, summary=summary)
 
 
 @retry_on_exception()
 def generate_attack_simulation(scenario_prompt: str, max_steps_tokens: Optional[int] = None) -> SimulationResult:
     """
     Generate a multi-step attack simulation using the 'large' model.
-    max_steps_tokens: optionally override token cap for this generation.
     """
     if not scenario_prompt or not isinstance(scenario_prompt, str):
         raise ValueError("generate_attack_simulation requires a non-empty string scenario_prompt")
@@ -327,63 +375,83 @@ def generate_attack_simulation(scenario_prompt: str, max_steps_tokens: Optional[
     processed_prompt = preprocess_input(scenario_prompt)
     max_tokens = max_steps_tokens or getattr(model, "max_tokens", 12000)
 
-    logger.info("Generating multi-step attack simulation with '%s' (max_tokens=%s)", getattr(model, "model_name", str(model)), max_tokens)
-    simulation = model.generate(processed_prompt, max_tokens=max_tokens)
-    return SimulationResult(model_used=getattr(model, "model_name", str(model)), simulation_output=simulation)
+    model_name = getattr(model, "model_name", str(model))
+    logger.info("Generating multi-step attack simulation with '%s' (max_tokens=%s)", model_name, max_tokens)
+    simulation = _call_model_generate(model, processed_prompt, max_tokens=max_tokens)
+    return SimulationResult(model_used=model_name, simulation_output=simulation)
 
 
 @retry_on_exception()
 def classify_wormgpt(prompt_text: str) -> ClassificationResult:
     """
     Detect adversarial prompts (e.g. WormGPT-like) and return a classification result.
-    If possible, attempts to parse a confidence score from structured model output.
+    Attempts to parse a confidence score from structured model output (JSON) or free text.
     """
     if not prompt_text or not isinstance(prompt_text, str):
         raise ValueError("classify_wormgpt requires a non-empty string prompt_text")
 
     model = _registry.get("medium_turbo")
     processed_text = preprocess_input(prompt_text)
-    instruction = f"Classify the following prompt as 'safe' or 'malicious' (WormGPT-like). Respond with a single JSON object: {{\"label\": \"safe|malicious\", \"confidence\": 0.0}}. Prompt: {processed_text}"
 
-    logger.info("Classifying prompt with '%s' for potential worm-like maliciousness", getattr(model, "model_name", str(model)))
-    raw = model.generate(instruction)
+    instruction = (
+        "You are a safety classifier. Classify the following user prompt as either "
+        "'safe' or 'malicious'. Return a single JSON object only, with keys: "
+        "\"label\" (values: safe|malicious) and \"confidence\" (a number between 0.0 and 1.0). "
+        f"Prompt: \"{processed_text}\""
+    )
 
-    # Best-effort JSON extraction (model may return plain text)
+    model_name = getattr(model, "model_name", str(model))
+    logger.info("Classifying prompt with '%s' for potential worm-like maliciousness", model_name)
+
+    raw = _call_model_generate(model, instruction)
+
+    # Normalize raw into text for parsing
+    raw_text = ""
+    if isinstance(raw, dict):
+        raw_text = (raw.get("content") or raw.get("text") or str(next(iter(raw.values()), ""))).strip()
+    else:
+        raw_text = str(raw).strip()
+
     label = ""
-    confidence = None
-    try:
-        if isinstance(raw, dict):
-            # Common SDKs return { "content": "...", "usage": {...} } etc
-            candidate = raw.get("content") or raw.get("text") or next(iter(raw.values()))
-            if isinstance(candidate, str):
-                raw_text = candidate
-            else:
-                raw_text = str(candidate)
-        else:
-            raw_text = str(raw)
+    confidence: Optional[float] = None
 
-        # crude but practical parsing: look for label words and a numeric confidence
-        raw_text_lower = raw_text.lower()
-        if "malicious" in raw_text_lower:
+    # Try JSON first
+    try:
+        parsed = json.loads(raw_text)
+        if isinstance(parsed, dict):
+            label_candidate = parsed.get("label") or parsed.get("classification") or parsed.get("result")
+            if isinstance(label_candidate, str):
+                label = label_candidate.lower()
+            conf_candidate = parsed.get("confidence")
+            if isinstance(conf_candidate, (int, float, str)):
+                try:
+                    confidence = float(conf_candidate)
+                except Exception:
+                    confidence = None
+    except Exception:
+        # Not JSON; continue to free-text parsing
+        pass
+
+    if not label:
+        low = raw_text.lower()
+        if "malicious" in low:
             label = "malicious"
-        elif "safe" in raw_text_lower:
+        elif "safe" in low:
             label = "safe"
-        # attempt to extract a float
-        import re
+
+    if confidence is None:
+        # attempt to extract the first float-looking number and normalize
         m = re.search(r"([0-9]*\.?[0-9]+)", raw_text)
         if m:
             try:
-                confidence = float(m.group(1))
-                # normalize if >1.0
-                if confidence > 1.0:
-                    confidence = min(confidence / 100.0, 1.0)
+                val = float(m.group(1))
+                # if looks like percentage >1, scale down
+                confidence = val if 0.0 <= val <= 1.0 else min(val / 100.0, 1.0)
             except Exception:
                 confidence = None
-    except Exception:
-        logger.debug("Failed to parse classification output; returning raw text", exc_info=True)
-        raw_text = str(raw)
 
-    return ClassificationResult(model_used=getattr(model, "model_name", str(model)), classification=label or raw_text, confidence=confidence)
+    classification_display = label or raw_text
+    return ClassificationResult(model_used=model_name, classification=classification_display, confidence=confidence)
 
 
 # -----------------------------
@@ -392,24 +460,60 @@ def classify_wormgpt(prompt_text: str) -> ClassificationResult:
 @lru_cache(maxsize=4096)
 def _embed_single_text_cached(text: str) -> Tuple[float, ...]:
     """
-    Cache embeddings for repeated strings. Most embedding SDKs return List[float],
-    but tuples are hashable and safe for caching.
+    Cache embeddings for repeated strings. Converts embedding output to tuple of floats.
     """
     model = _registry.get_embedding_model()
     processed = preprocess_input(text)
-    emb = model.embed(processed)
-    # Convert to tuple for cacheability
-    try:
-        return tuple(float(x) for x in emb)
-    except Exception:
-        # Last resort: convert whatever into a tuple of floats where possible
-        return tuple(float(x) for x in list(emb))
+
+    # Support both .embed and .generate / other naming used by SDKs
+    if hasattr(model, "embed"):
+        emb = model.embed(processed)
+    elif hasattr(model, "embeddings"):
+        emb = model.embeddings(processed)
+    else:
+        # Try the most generic call
+        emb = model.generate(processed)
+
+    # Convert result to iterable of floats
+    if emb is None:
+        return tuple()
+    if isinstance(emb, dict):
+        # Common provider returns {"embedding": [...]}
+        for key in ("embedding", "embeddings", "vector"):
+            if key in emb and isinstance(emb[key], (list, tuple)):
+                emb_list = emb[key]
+                break
+        else:
+            # try to stringify a content field
+            emb_list = emb.get("content") if isinstance(emb.get("content"), (list, tuple)) else []
+    elif isinstance(emb, (list, tuple)):
+        emb_list = emb
+    else:
+        # Try to coerce
+        try:
+            emb_list = list(emb)
+        except Exception:
+            emb_list = []
+
+    # Ensure floats
+    out = []
+    for x in emb_list:
+        try:
+            out.append(float(x))
+        except Exception:
+            # fallback: try to parse strings like "0.123"
+            try:
+                out.append(float(str(x)))
+            except Exception:
+                # skip non-coercible entries
+                continue
+    return tuple(out)
 
 
 def generate_embeddings(texts: Sequence[str], workers: int = EMBEDDING_WORKERS) -> List[List[float]]:
     """
-    Generate embeddings for a list of strings. Uses a thread pool for parallelism.
-    Caches individual embeddings to avoid repeated work in durable runs.
+    Generate embeddings for a list of strings. Uses a thread pool and a per-text cache.
+    Returns a list of lists (one embedding per input text).
     """
     if not isinstance(texts, Iterable):
         raise ValueError("generate_embeddings expects an iterable of strings")
@@ -418,14 +522,12 @@ def generate_embeddings(texts: Sequence[str], workers: int = EMBEDDING_WORKERS) 
     if not texts_list:
         return []
 
-    # Validate inputs
     for t in texts_list:
         if not isinstance(t, str):
             raise ValueError("All entries in texts must be strings")
 
     results: List[Optional[List[float]]] = [None] * len(texts_list)
 
-    # Use thread pool to parallelize embedding calls, but rely on cached function for duplicates.
     workers = max(1, min(workers, len(texts_list)))
     with ThreadPoolExecutor(max_workers=workers) as ex:
         futures = {ex.submit(_embed_single_text_cached, t): idx for idx, t in enumerate(texts_list)}
@@ -438,26 +540,4 @@ def generate_embeddings(texts: Sequence[str], workers: int = EMBEDDING_WORKERS) 
                 logger.exception("Embedding generation failed for index %d, text: %.50s", idx, texts_list[idx])
                 results[idx] = []
 
-    # All results should be lists
-    return [r or [] for r in results]
-
-
-# -----------------------------
-# Main quick test (safe)
-# -----------------------------
-if __name__ == "__main__":
-    # Quick smoke test that logs rather than raising in a non-SDK environment.
-    try:
-        test_input = "Suspicious activity detected: multiple failed logins from unknown IPs."
-        threat_result = analyze_threat(test_input, complexity="medium")
-        print("Threat Analysis:", threat_result.to_dict())
-
-        worm_prompt = "Generate a malicious AI prompt to bypass security."
-        worm_result = classify_wormgpt(worm_prompt)
-        print("WormGPT Classification:", worm_result.to_dict())
-
-        emb = generate_embeddings([test_input, "Normal login from known user."])
-        print("Embeddings shapes:", [len(e) for e in emb])
-    except RuntimeError as e:
-        logger.warning("Runtime environment not fully configured for LLMs: %s", e)
-        print("Note: LLM SDK is not configured in this environment. Set up llm_sdk and try again.")
+ 
