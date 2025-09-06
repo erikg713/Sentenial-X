@@ -13,7 +13,23 @@ import logging
 from typing import Any, Dict, List
 from api.utils.logger import init_logger
 import numpy as np
+# ai_core/utils.py
+import logging
 
+logger = logging.getLogger("SentenialX.AICore")
+logger.setLevel(logging.INFO)
+
+def preprocess_input(text: str) -> str:
+    """
+    Normalize and clean logs, prompts, or text inputs.
+    """
+    return " ".join(text.strip().split())
+
+def log_info(message: str):
+    logger.info(message)
+
+def log_warn(message: str):
+    logger.warning(message)
 logger = init_logger("ai_core.utils")
 
 
