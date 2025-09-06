@@ -69,5 +69,5 @@ export default function PalaceOfQuests() {
     return <CharacterCreation onCharacterCreated={handleCharacterCreated} />
   }
 
-  return gameUser ? <GameInterface character={character} gameUser={gameUser} /> : null
+  return <GameInterface character={character} gameUser={gameUser} />
 }
