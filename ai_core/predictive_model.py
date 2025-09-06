@@ -14,7 +14,34 @@ Notes:
 - Replace the `llm_sdk` placeholder with your actual LLM provider SDK or runtime.
 - Environment variables can override model names and concurrency settings.
 """
+# ai_core/predictive_model.py
+from deep_infra_sdk import DeepSpeedModel, BatchTaskQueue
+from typing import Dict, Any
+from .utils import preprocess_input, log_info
+from .embeddings_service import generate_embeddings
 
+# -----------------------------
+# Initialize LLaMA models
+# -----------------------------
+MODELS = {
+    "small": DeepSpeedModel("Llama-4-Maverick-17B-128E-Instruct-FP8", device_map="auto", dtype="fp16"),
+    "medium_turbo": DeepSpeedModel("Meta-Llama-3.1-70B-Instruct-Turbo", device_map="auto", dtype="fp16"),
+    "large": DeepSpeedModel("Meta-Llama-3.1-405B-Instruct", device_map="auto", dtype="fp16", parallelism="tensor+pipeline")
+}
+
+# Async batch queue
+TASK_QUEUE = BatchTaskQueue(max_batch_size=16)
+
+def select_model(complexity: str = "low"):
+    if complexity == "low": return MODELS["small"]
+    elif complexity == "medium": return MODELS["medium_turbo"]
+    elif complexity == "high": return MODELS["large"]
+    else: return MODELS["medium_turbo"]
+
+async def enqueue_task(text: str, complexity: str = "medium") -> Any:
+    model = select_model(complexity)
+    log_info(f"[{model.model_name}] Task complexity: {complexity}")
+    return await TASK_QUEUE.add_task(model.generate, preprocess_input(text))
 from __future__ import annotations
 import logging
 import os
