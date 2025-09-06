@@ -60,7 +60,10 @@ High-level features
 Repository layout (high level)
 ------------------------------
 Below is a simplified, developer-oriented view of the repo. This is purposely concise — explore folders to see README and CONTRIBUTING notes for each service.
-
+kubectl -n sentenialx create secret generic sentenialx-secrets \
+  --from-literal=DATABASE_URL='postgresql://user:pass@host/db' \
+  --from-literal=DOCKER_REGISTRY_USER='...' \
+  --from-literal=DOCKER_REGISTRY_PASS='...'
 ```
 apps/
 ├─ api-gateway/            # FastAPI service, routing, auth, observability
