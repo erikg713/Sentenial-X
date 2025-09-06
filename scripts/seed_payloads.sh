@@ -1,64 +1,66 @@
-#!/bin/bash
-# scripts/seed_payloads.sh
-# Sentenial-X: Seed example payloads, logs, and network anomalies
+#!/usr/bin/env bash
+# -*- coding: utf-8 -*-
+#
+# Seed initial attack payloads into the Sentenial-X database
+# ---------------------------------------------------------
+# Usage:
+#   ./seed_payloads.sh
+#   ./seed_payloads.sh --dry-run
 
-set -e
+set -euo pipefail
 
-PAYLOAD_DIR="./data/raw/payloads"
-LOGS_DIR="./data/raw/logs"
-HTTP_DIR="./data/raw/http"
+# -------------------------------
+# Configuration (env overrides)
+# -------------------------------
+DB_HOST="${DB_HOST:-localhost}"
+DB_PORT="${DB_PORT:-5432}"
+DB_NAME="${DB_NAME:-sentenialx}"
+DB_USER="${DB_USER:-postgres}"
+DB_PASSWORD="${DB_PASSWORD:-password}"
 
-# Create directories if they don't exist
-mkdir -p "$PAYLOAD_DIR"
-mkdir -p "$LOGS_DIR"
-mkdir -p "$HTTP_DIR"
+DRY_RUN=false
+if [[ "${1:-}" == "--dry-run" ]]; then
+  DRY_RUN=true
+  echo "⚠️  Running in dry-run mode. No changes will be applied."
+fi
 
-echo "[Seed Payloads] Creating example payloads..."
-
-# ---------------- Example Malware Payloads ----------------
-declare -A payloads
-payloads["malware1"]="MALWARE_EXEC /tmp/malicious.exe"
-payloads["malware2"]="DROP TABLE users; -- SQL Injection"
-payloads["malware3"]="<script>alert('XSS')</script>"
-
-for name in "${!payloads[@]}"; do
-    file_path="$PAYLOAD_DIR/$name.txt"
-    if [ ! -f "$file_path" ]; then
-        echo "${payloads[$name]}" > "$file_path"
-        echo "[Seed Payloads] Created $file_path"
-    fi
-done
-
-# ---------------- Example System Logs ----------------
-logs=(
-    "User login failed from IP 192.168.1.10"
-    "File download detected: /tmp/malware.exe"
-    "Unusual POST payload detected on /api/upload"
-    "Multiple failed SSH attempts from 10.0.0.15"
+# -------------------------------
+# Payloads to seed
+# -------------------------------
+declare -a PAYLOADS=(
+  '{"id": "p001", "name": "Phishing Email", "type": "email", "description": "Simulated phishing email with malicious link"}'
+  '{"id": "p002", "name": "Ransomware Dropper", "type": "malware", "description": "File-based ransomware payload"}'
+  '{"id": "p003", "name": "SQL Injection Test", "type": "web", "description": "Test SQL injection attack payload"}'
+  '{"id": "p004", "name": "Brute Force SSH", "type": "network", "description": "Simulated SSH brute force attempt"}'
 )
 
-for i in "${!logs[@]}"; do
-    file_path="$LOGS_DIR/log_$i.txt"
-    if [ ! -f "$file_path" ]; then
-        echo "${logs[$i]}" > "$file_path"
-        echo "[Seed Payloads] Created log file $file_path"
-    fi
+# -------------------------------
+# Seed function
+# -------------------------------
+function seed_payload() {
+  local payload_json="$1"
+  local id name type description
+
+  id=$(echo "$payload_json" | jq -r '.id')
+  name=$(echo "$payload_json" | jq -r '.name')
+  type=$(echo "$payload_json" | jq -r '.type')
+  description=$(echo "$payload_json" | jq -r '.description')
+
+  if [ "$DRY_RUN" = true ]; then
+    echo "[Dry-Run] Would insert payload: $id | $name | $type | $description"
+  else
+    PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c \
+      "INSERT INTO attack_payloads (id, name, type, description) VALUES ('$id', '$name', '$type', '$description') ON CONFLICT (id) DO NOTHING;"
+    echo "✅ Inserted payload: $id | $name"
+  fi
+}
+
+# -------------------------------
+# Main seeding loop
+# -------------------------------
+echo "🌐 Seeding attack payloads into $DB_NAME..."
+for payload in "${PAYLOADS[@]}"; do
+  seed_payload "$payload"
 done
 
-# ---------------- Example HTTP Traffic ----------------
-http_requests=(
-    "GET /login HTTP/1.1 Host: example.com User-Agent: Mozilla/5.0"
-    "POST /api/upload HTTP/1.1 Host: example.com Content-Length: 1024"
-    "GET /admin HTTP/1.1 Host: example.com Cookie: sessionid=abcd1234"
-    "POST /login HTTP/1.1 Host: example.com User-Agent: test-agent"
-)
-
-for i in "${!http_requests[@]}"; do
-    file_path="$HTTP_DIR/request_$i.txt"
-    if [ ! -f "$file_path" ]; then
-        echo "${http_requests[$i]}" > "$file_path"
-        echo "[Seed Payloads] Created HTTP request $file_path"
-    fi
-done
-
-echo "[Seed Payloads] All payloads, logs, and HTTP requests have been seeded."
+echo "✅ Seeding complete."
