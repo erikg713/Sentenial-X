@@ -2,6 +2,15 @@ import logging
 import os
 from datetime import datetime
 import structlog
+import json
+
+def log_metrics(metrics: dict, filename="training_log.json"):
+    """Save training metrics to file."""
+    metrics["timestamp"] = datetime.utcnow().isoformat()
+    with open(filename, "a") as f:
+        f.write(json.dumps(metrics) + "\n")
+    print(f"[+] Metrics logged: {metrics}")
+
 logger = structlog.get_logger()
 
 logger.info("threat_detected", ip="192.168.0.3", intent="injection", severity="high")
