@@ -1,0 +1,10 @@
+[CLI / API Input] 
+       │
+       ▼
+[Cortex AI Analysis] → [Anomaly / Adversarial / Predictive Models]
+       │
+       ▼
+[Simulation / Playbook Trigger]
+       │
+       ▼
+[TelemetryCollector → Alerts / Reports / Logs]
