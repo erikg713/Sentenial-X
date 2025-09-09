@@ -1,1 +1,66 @@
+{
+  "commands": [
+    {
+      "name": "scan_network",
+      "description": "Perform active network reconnaissance for live hosts and open ports",
+      "parameters": {
+        "subnet": "string"
+      }
+    },
+    {
+      "name": "run_antivirus",
+      "description": "Initiate antivirus/anti-malware scan on target endpoint",
+      "parameters": {
+        "endpoint_id": "string",
+        "scan_mode": "string"
+      }
+    },
+    {
+      "name": "isolate_host",
+      "description": "Disconnect target endpoint from the network to contain threat",
+      "parameters": {
+        "endpoint_id": "string",
+        "reason": "string"
+      }
+    },
+    {
+      "name": "execute_script",
+      "description": "Safely run a vetted script or command on a host",
+      "parameters": {
+        "endpoint_id": "string",
+        "script_id": "string"
+      }
+    },
+    {
+      "name": "block_ip",
+      "description": "Block outbound or inbound traffic from a specified IP address",
+      "parameters": {
+        "ip_address": "string"
+      }
+    },
+    {
+      "name": "quarantine_file",
+      "description": "Move suspicious file to quarantine area",
+      "parameters": {
+        "file_path": "string"
+      }
+    },
+    {
+      "name": "alert_human",
+      "description": "Generate a high-priority alert and request human analyst review",
+      "parameters": {
+        "threat_level": "string",
+        "details": "string"
+      }
+    },
+    {
+      "name": "fetch_logs",
+      "description": "Retrieve system, application, or security logs from target endpoint",
+      "parameters": {
+        "endpoint_id": "string",
+        "log_type": "string"
+      }
+    }
+  ]
+}
 
