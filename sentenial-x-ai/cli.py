@@ -1,94 +1,90 @@
-import asyncio
-import json
-import os
-import typer
-import requests
-import logging
+#!/usr/bin/env python3
+"""
+Sentenial-X AI CLI
+==================
+Command-line interface to manage and run Sentenial-X autonomous agents.
 
-from memory import enqueue_command
-from config import COMMAND_POLL_INTERVAL, AGENT_ID, NETWORK_PORT
+Usage Examples:
+---------------
+# Train a baseline agent
+python cli.py train --episodes 1000
+
+# Run agent in simulation
+python cli.py run --agent-id agent001
+
+# Show agent status
+python cli.py status --agent-id agent001
+"""
+
+import argparse
+import logging
+from sentenial_x.agents.base_agent import BaseAgent
+from sentenial_x.agents.sentenial_agent import SentenialAgent
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
-
-# Create Typer app
-app = typer.Typer(help="📡 Sentenial-X AI Agent CLI Interface")
-
-
-@app.command()
-def start():
-    """
-    🚀 Start the AI Agent in the foreground.
-    """
-    typer.echo("🚀 Launching Sentenial-X agent...")
-    os.execvp("python3", ["python3", "agent.py"])
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+)
+logger = logging.getLogger("SentenialX.CLI")
 
 
-@app.command()
-def send(command: str):
-    """
-    📤 Enqueue a command to the AI agent.
-    """
-    try:
-        asyncio.run(enqueue_command(AGENT_ID, command.strip()))
-        typer.echo(f"✅ Command queued: {command}")
-    except Exception as e:
-        logging.exception("❌ Failed to enqueue command")
-        typer.echo(f"❌ Error queuing command: {e}")
+def main():
+    parser = argparse.ArgumentParser(description="Sentenial-X AI CLI")
+    subparsers = parser.add_subparsers(dest="command", required=True)
+
+    # Train command
+    parser_train = subparsers.add_parser("train", help="Train an RL agent")
+    parser_train.add_argument("--episodes", type=int, default=1000, help="Number of training episodes")
+
+    # Run command
+    parser_run = subparsers.add_parser("run", help="Run an agent in simulation")
+    parser_run.add_argument("--agent-id", type=str, required=True, help="Agent ID to run")
+    parser_run.add_argument("--interval", type=float, default=1.0, help="Execution interval in seconds")
+
+    # Status command
+    parser_status = subparsers.add_parser("status", help="Get agent status")
+    parser_status.add_argument("--agent-id", type=str, required=True, help="Agent ID to query")
+
+    args = parser.parse_args()
+
+    if args.command == "train":
+        # Initialize default CyberBattleSim environment
+        try:
+            from cyberbattle.simulation import env
+        except ImportError:
+            logger.error("CyberBattleSim not installed. Install with `pip install CyberBattleSim`.")
+            return
+
+        environment = env.CyberBattleEnv()
+        agent = SentenialAgent(environment, episodes=args.episodes)
+        agent.train()
+
+    elif args.command == "run":
+        # For simplicity, using a SentenialAgent wrapper
+        from cyberbattle.simulation import env
+        environment = env.CyberBattleEnv()
+        agent = SentenialAgent(environment)
+        agent_wrapper = agent.agent  # Access internal AgentWrapper
+        logger.info(f"Running agent {args.agent_id} with interval {args.interval}s...")
+
+        try:
+            while True:
+                state = environment.get_state()
+                action = agent.act(state)
+                environment.step(action)
+        except KeyboardInterrupt:
+            logger.info("Execution interrupted by user.")
+
+    elif args.command == "status":
+        # Placeholder for real agent status retrieval
+        logger.info(f"Querying status for agent {args.agent_id}...")
+        # In full implementation, retrieve status from orchestrator or registry
+        print({"agent_id": args.agent_id, "status": "unknown", "running": False})
+
+    else:
+        parser.print_help()
 
 
-@app.command()
-def status():
-    """
-    🧠 Check the health status of the AI agent.
-    """
-    url = f"http://localhost:{NETWORK_PORT}/health"
-    try:
-        response = requests.get(url, timeout=3)
-        response.raise_for_status()
-        typer.echo(json.dumps(response.json(), indent=2))
-    except requests.ConnectionError:
-        typer.echo("❌ Agent is not running or unreachable.")
-    except requests.Timeout:
-        typer.echo("⏱️ Request to agent timed out.")
-    except Exception as e:
-        logging.exception("❌ Unexpected error during status check")
-        typer.echo(f"❌ Unexpected error: {e}")
-
-
-@app.command()
-def broadcast(message: str):
-    """
-    📡 Manually broadcast a status message to peer agents.
-    """
-    url = f"http://localhost:{NETWORK_PORT}/message"
-    payload = {"from": AGENT_ID, "msg": message}
-
-    try:
-        response = requests.post(url, json=payload, timeout=3)
-        if response.status_code == 204:
-            typer.echo("📢 Broadcast sent successfully.")
-        else:
-            typer.echo(f"⚠️ Unexpected response: {response.status_code}")
-    except requests.RequestException as e:
-        logging.exception("❌ Broadcast request failed")
-        typer.echo(f"❌ Broadcast error: {e}")
-
-
-@app.command()
-def stop():
-    """
-    🛑 Stop the AI Agent gracefully.
-    (Note: requires agent to support signal handling or PID tracking.)
-    """
-    try:
-        os.system("pkill -f agent.py")
-        typer.echo("🛑 Agent stopped.")
-    except Exception as e:
-        logging.exception("❌ Failed to stop agent")
-        typer.echo(f"❌ Error stopping agent: {e}")
-
-
-# Entry point
 if __name__ == "__main__":
-    app()
+    main()
