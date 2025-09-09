@@ -1,5 +1,5 @@
 """
-Sentenial-X Agents Package
+Sentenial-X-A.I. Agents Package
 ==========================
 
 This package contains modular agents used across the Sentenial-X
