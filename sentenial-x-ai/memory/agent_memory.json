@@ -1,3 +1,60 @@
+{
+  "metadata": {
+    "version": "1.0.0",
+    "last_updated": "2025-09-09T00:00:00Z",
+    "description": "Persistent agent memory for Sentenial-X AI multi-agent system"
+  },
+  "agents": {
+    "sentinel_core": {
+      "id": "agent-001",
+      "role": "threat_defense",
+      "policies": ["PPO", "DQN"],
+      "last_action": "blocked_suspicious_connection",
+      "experience_buffer": [
+        {
+          "state": "incoming_traffic_high",
+          "action": "block_ip",
+          "reward": 0.85,
+          "timestamp": "2025-09-08T12:45:22Z"
+        },
+        {
+          "state": "normal_traffic",
+          "action": "monitor",
+          "reward": 0.10,
+          "timestamp": "2025-09-08T12:50:00Z"
+        }
+      ]
+    },
+    "sentinel_analyzer": {
+      "id": "agent-002",
+      "role": "semantic_analysis",
+      "policies": ["A3C"],
+      "last_action": "flagged_prompt_injection",
+      "experience_buffer": [
+        {
+          "state": "user_prompt_detected",
+          "action": "analyze",
+          "reward": 0.75,
+          "timestamp": "2025-09-08T13:05:11Z"
+        }
+      ]
+    }
+  },
+  "telemetry": {
+    "system_health": {
+      "cpu_usage": "32%",
+      "memory_usage": "2.4GB",
+      "disk_usage": "45%",
+      "uptime": "3h 12m"
+    },
+    "network": {
+      "active_connections": 47,
+      "threats_detected": 3,
+      "blocked_ips": ["192.168.1.24", "203.0.113.88"]
+    }
+  }
+}
+
 MEMORY_FILE = "memory/agent_memory.json"
 
 def remember(event):
