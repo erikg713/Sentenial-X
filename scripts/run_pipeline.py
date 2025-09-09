@@ -1,55 +1,82 @@
-# scripts/run_pipeline.py
+# -*- coding: utf-8 -*-
+"""
+scripts.run_pipeline
+-------------------
 
-from libs.ml.ml_pipeline import SentenialMLPipeline
+Executes the Sentenial-X emulation pipeline.
 
-# ---------------------------
-# Sample telemetry/log data
-# ---------------------------
-texts = [
-    "Agent executed task A",
-    "Telemetry anomaly detected",
-    "Normal telemetry received",
-    "VSSAdmin delete shadows detected",
-    "Process injected with AMSI bypass"
-]
-labels = [0, 1, 0, 1, 1]  # 0 = benign, 1 = malicious
+- Loads all plugins
+- Discovers simulators
+- Executes registered playbooks
+- Collects telemetry
+- Supports sequential or parallel execution
+"""
 
-# ---------------------------
-# Initialize ML pipeline
-# ---------------------------
-pipeline = SentenialMLPipeline()
-pipeline.init_model(base_model_name="bert-base-uncased", embedding_dim=64, num_classes=2)
+from __future__ import annotations
+import logging
+from typing import Any, List
 
-# ---------------------------
-# Supervised training
-# ---------------------------
-print("\n--- Supervised Training ---")
-pipeline.train_supervised(texts, labels, batch_size=2, epochs=2, lr=5e-5)
+from core.simulator import EmulationManager, TelemetryCollector, discover_simulators
+from scripts.load_plugins import load_all_plugins
 
-# ---------------------------
-# Contrastive training (self-supervised)
-# ---------------------------
-print("\n--- Contrastive Training ---")
-pipeline.train_contrastive(texts, batch_size=2, epochs=2, lr=3e-4, temperature=0.5)
+# Configure logging
+logger = logging.getLogger("SentenialX.Pipeline")
+if not logger.handlers:
+    handler = logging.StreamHandler()
+    handler.setFormatter(logging.Formatter("[%(levelname)s] %(asctime)s - %(message)s"))
+    logger.addHandler(handler)
+    logger.setLevel(logging.INFO)
 
-# ---------------------------
-# LoRA fine-tuning
-# ---------------------------
-print("\n--- LoRA Fine-Tuning ---")
-pipeline.init_lora_tuner(r=4, alpha=8, dropout=0.1, num_labels=2)
-pipeline.train_lora(texts, labels, batch_size=2, epochs=2, lr=5e-5, save_path="models/lora_telemetry.pt")
+def run_pipeline(sequential: bool = True) -> None:
+    """
+    Run the main Sentenial-X emulation pipeline.
 
-# ---------------------------
-# Inference examples
-# ---------------------------
-print("\n--- Inference ---")
-new_texts = [
-    "Suspicious AMSI bypass detected",
-    "Routine telemetry event"
-]
+    Args:
+        sequential (bool): Run simulators one by one if True, or concurrently if False.
+    """
+    logger.info("Starting Sentenial-X emulation pipeline...")
 
-predictions = pipeline.predict(new_texts)
-print("Predictions (0=benign, 1=malicious):", predictions)
+    # Step 1: Load plugins
+    loaded_plugins = load_all_plugins()
+    logger.info("Loaded %d plugins.", len(loaded_plugins))
 
-embeddings = pipeline.encode_texts(new_texts)
-print("Embeddings shape:", embeddings.shape)
+    # Step 2: Discover simulators
+    simulators: List[Any] = discover_simulators()
+    if not simulators:
+        logger.warning("No simulators found. Exiting pipeline.")
+        return
+    logger.info("Discovered %d simulator(s).", len(simulators))
+
+    # Step 3: Initialize EmulationManager
+    manager = EmulationManager()
+    for sim in simulators:
+        try:
+            manager.register(sim)
+            logger.info("Registered simulator: %s", getattr(sim, "name", sim.__class__.__name__))
+        except Exception as e:
+            logger.error("Failed to register simulator %s: %s", sim, e)
+
+    # Step 4: Execute pipeline
+    try:
+        manager.run_all(sequential=sequential)
+        logger.info("Pipeline execution completed successfully.")
+    except Exception as e:
+        logger.exception("Error during pipeline execution: %s", e)
+
+    # Step 5: Collect telemetry
+    try:
+        telemetry_collector = TelemetryCollector()
+        telemetry_collector.collect(manager)
+        telemetry_summary = telemetry_collector.summary()
+        logger.info("Telemetry summary: %s", telemetry_summary)
+    except Exception as e:
+        logger.error("Failed to collect telemetry: %s", e)
+
+if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Run the Sentenial-X emulation pipeline.")
+    parser.add_argument("--sequential", action="store_true", help="Run simulators sequentially")
+    args = parser.parse_args()
+
+    run_pipeline(sequential=args.sequential)
