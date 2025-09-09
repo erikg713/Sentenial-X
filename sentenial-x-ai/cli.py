@@ -20,7 +20,23 @@ import argparse
 import logging
 from sentenial_x.agents.base_agent import BaseAgent
 from sentenial_x.agents.sentenial_agent import SentenialAgent
+import click
+from sentenial_x_ai.commands import train, eval, serve, telemetry
+from sentenial_x_ai.commands.utils import print_banner
 
+@click.group()
+def cli():
+    """Sentenial-X CLI"""
+    print_banner()
+
+cli.add_command(train.train_agent)
+cli.add_command(eval.eval_agent)
+cli.add_command(serve.serve_api)
+cli.add_command(telemetry.consume_telemetry)
+
+if __name__ == "__main__":
+    cli()
+    
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
