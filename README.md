@@ -257,3 +257,186 @@ Sentenial-X is proprietary with Apache-2.0 elements. For licensing, trials, or a
   ```
   docker compose -f docker/docker-compose.yml up --build inference
   ```
+## Countermeasure Agent Architecture in Sentenial-X
+
+### Overview
+The Countermeasure Agent is a core component of the Sentenial-X cyber-defense platform, serving as a policy-driven executor for safe and controlled responses to detected threats. It enables autonomous countermeasures such as quarantine, rerouting, and automatic recovery, while ensuring all actions are governed by strict policies to prevent unintended disruptions. Designed for resilience, it operates in sandboxed environments (using WASM or containers) and supports the platform's adaptive AI by incorporating incident feedback to refine future responses. This component embodies Sentenial-X's "offensive-defensive fusion," allowing for controlled emulation and self-healing mechanisms, all while prioritizing compliance and auditability.<grok:render card_id="e30f6f" card_type="citation_card" type="render_inline_citation">
+<argument name="citation_id">10</argument>
+</grok:render>
+
+### High-Level Architecture and Integration
+The Countermeasure Agent integrates seamlessly into Sentenial-X's modular architecture, acting as the execution layer following threat analysis. It is triggered only after policy validation, ensuring safe operation within the broader system flow.
+
+#### Data Flow and Integration Points
+1. **Triggering Mechanism**: After the Threat Engine processes telemetry (streamed from agents via the API Gateway) and generates scores, classifications, and playbook recommendations, the Orchestrator invokes the Countermeasure Agent. This invocation includes policy checks, such as operator approval in non-test modes, to authorize actions.
+
+2. **Execution and Sandboxing**: The agent performs responses in isolated runtimes (WASM or Python-based containers), drawing from the Memory Core for contextual data and integrating with the Pentest Suite for emulation-based testing. Actions are limited to observe-and-emulate modes by default, with active countermeasures requiring explicit opt-in.
+
+3. **Output and Feedback**: Executed actions produce cryptographically signed, immutable logs stored in `data/logs/` for forensic analysis and compliance reporting (aligned with NIST, ISO, GDPR, HIPAA, and DoD). Outcomes feed back into the adaptive AI pipeline, updating models (e.g., via LoRA adapters) to enhance future detections and responses. Results also update the Dashboard for operator oversight and the Compliance & Legal Shield for evidence packaging.
+
+4. **Governance Integration**: The agent enforces Role-Based Access Control (RBAC) with fine-grained roles for operators, auditors, and developers. It collaborates with the Jailbreak Detector to sanitize inputs and the Legal Shield for required approvals, ensuring no unsupervised destructive actions.
+
+This architecture supports enterprise-scale deployments, with infrastructure handled via Terraform and Helm in the `infra/` directory, promoting flexibility across cloud, on-premises, and hybrid setups.<grok:render card_id="8d5815" card_type="citation_card" type="render_inline_citation">
+<argument name="citation_id">10</argument>
+</grok:render>
+
+### Key Components
+The Countermeasure Agent comprises elements focused on secure, policy-compliant execution:
+
+- **Policy Governance Engine**: Validates all actions against predefined policies, requiring operator confirmation and legal reviews for offensive or emulation tasks. This layer ensures compliance with safe defaults, where the system operates in passive (observe/emulate) mode unless authorized.
+
+- **Sandbox Runtime Executor**: Utilizes WASM or container-based isolation for running countermeasures, preventing spillover to production systems. Supports Python actions for custom logic and WASM for lightweight, secure execution.
+
+- **Action Playbook Interpreter**: Interprets recommended playbooks from the Threat Engine, executing tasks like threat neutralization, isolation of affected areas, or restoration of previous states as part of the self-recovery mechanism.
+
+- **Logging and Auditing Module**: Automatically generates signed logs for every action, enabling non-repudiation and immutable forensics. Integrates with the Compliance Engine for automated reporting and evidence templates.
+
+- **Feedback Integration**: Connects to the adaptive AI system, using post-action data to refine models and improve the platform's learning from incidents.
+
+These components emphasize security, with features like cryptographic signing and gated access (e.g., NDAs for sensitive modules).<grok:render card_id="150f58" card_type="citation_card" type="render_inline_citation">
+<argument name="citation_id">10</argument>
+</grok:render>
+
+### How It Works: Operational Flow
+1. **Invocation**: The Orchestrator receives threat insights from the Threat Engine and applies policy checks (including RBAC and approvals) before signaling the Countermeasure Agent.
+
+2. **Policy Validation**: The agent verifies authorization, ensuring actions align with governance rules. If approved, it proceeds; otherwise, it defaults to emulation or logging-only mode.
+
+3. **Execution**: In a sandboxed environment, the agent runs the specified countermeasures—e.g., quarantining assets, rerouting traffic, or simulating responses via the Pentest Suite. This step leverages WASM/Python for efficiency and safety.
+
+4. **Logging and Reporting**: All activities are logged immutably in `data/logs/`, with signatures for audit trails. Compliance reports are generated automatically.
+
+5. **Feedback and Adaptation**: Incident data is sanitized and fed back to update models, enhancing the agent's effectiveness over time. This loop supports Sentenial-X's mission of continuous improvement and anticipatory defense.
+
+The flow is designed to counter threats faster than attackers can adapt, while maintaining legal and operational safeguards. For testing, integration suites simulate attack playbacks to validate the agent's responses without real-world risk.<grok:render card_id="56db80" card_type="citation_card" type="render_inline_citation">
+<argument name="citation_id">10</argument>
+</grok:render>
+
+### Files and Subdirectories
+Implementation details for the Countermeasure Agent are housed in the `services/countermeasure-agent/` directory, following a structure similar to other services like the API Gateway. However, as the repository is a public template without committed code files, specific implementations are not detailed. Based on the layout:
+
+- **Core Directory** (`services/countermeasure-agent/`): Likely contains Python-based source files for action execution, such as `main.py` for entry points, `config.py` for settings, `auth.py` for RBAC integration, and routers for handling triggers from the Orchestrator.
+
+- **Related Support**:
+  - `infra/`: Includes Dockerfiles, Kubernetes manifests, and Terraform scripts for deploying the agent in production, with secrets management (e.g., via `kubectl` commands for DATABASE_URL and registry credentials).
+  - `data/logs/`: Storage for generated logs.
+  - `tests/`: Unit tests in `tests/unit/` and integration tests in `tests/integration/`, using mock agents for simulated scenarios.
+  - `libs/core/`: Shared utilities for policy enforcement and sandboxing.
+  - `models/orchestrator/`: Scripts like `orchestrate.py` for packaging related artifacts, potentially used in countermeasure workflows.
+
+Development follows Python 3.10+ standards, with CI/CD enforcing linting (Ruff, Black), typing (Mypy), and security scans. For local testing, use Docker Compose to spin up isolated environments, ensuring no unauthorized executions.<grok:render card_id="563ebf" card_type="citation_card" type="render_inline_citation">
+<argument name="citation_id">10</argument>
+</grok:render>
+
+## Threat Engine Architecture in Sentenial-X
+
+### Overview
+The Threat Engine is a pivotal component of the Sentenial-X cyber-defense platform, functioning as a multi-modal machine learning (ML) and rule-based engine dedicated to threat detection, scoring, classification, and triage. It processes real-time telemetry data to identify potential threats, assign confidence scores, and recommend appropriate response playbooks. By integrating adaptive AI capabilities, the engine evolves over time using validated incident data, enabling it to handle evolving cyber threats more effectively. This aligns with Sentenial-X's overarching goal of autonomous, policy-governed defense that combines detection with controlled countermeasures.<grok:render card_id="2ebad2" card_type="citation_card" type="render_inline_citation">
+<argument name="citation_id">0</argument>
+</grok:render>
+
+### High-Level Architecture and Integration
+The Threat Engine is embedded within Sentenial-X's modular architecture, acting as the analytical core that bridges data ingestion and response orchestration. It receives inputs from upstream components and feeds outputs to downstream modules, ensuring a seamless flow for incident response.
+
+#### Data Flow and Integration Points
+1. **Input Acquisition**: Encrypted telemetry from endpoint agents (e.g., via TypeScript agents in `libs/lib/agent.ts`) is streamed to the Agent Manager. The API Gateway (built with FastAPI and gRPC for routing, authentication, and observability) then forwards this data to the Threat Engine and the Memory Core (secure vector stores like FAISS, Chroma, or Weaviate with encryption-at-rest).
+   
+2. **Processing and Analysis**: Within the Threat Engine, multi-modal ML models and rule engines analyze the data. This includes leveraging large language models (LLMs) such as GPT-4.1 through Python AI modules (e.g., `analyze_threat`) for advanced threat interpretation.
+
+3. **Output and Orchestration**: The engine generates threat scores, classifications, and playbook recommendations. These are passed to the Orchestrator, which applies policy checks (including RBAC and legal approvals) before triggering the Countermeasure Agent for sandboxed actions (e.g., in WASM or containers). Outputs also update the Dashboard (Next.js/React UI with widgets like `threat_panel`, `telemetry_chart`, and `agent_card`) for operator visibility and the Compliance & Legal Shield for immutable logging and reporting (compliant with NIST, ISO, GDPR, HIPAA, and DoD standards).
+
+4. **Feedback Loop**: Post-incident data feeds back into the system, allowing models to adapt via secure pipelines, enhancing future detections.
+
+A simplified ASCII diagram from the repository illustrates the core flow involving the Threat Engine:
+
+```
+┌─────────────┐    ┌────────────────┐    ┌───────────────┐
+│ Event/Logs  │ ──▶ │ TypeScript     │ ──▶ │ WebSocket /   │
+│ Sources     │      │ Agent          │      │ API           │
+└─────────────┘      └────────────────┘      └───────────────┘
+                        │
+                        ▼
+              ┌───────────────────┐
+              │ Python AI Module  │
+              │ (analyze_threat)  │
+              │ (GPT-4.1)         │
+              └───────────────────┘
+                        │
+                        ▼
+              ┌───────────────────┐
+              │ Dashboard Widgets │
+              └───────────────────┘
+```
+
+This architecture ensures resilience, with features like automatic recovery flows and safe defaults (observation and emulation modes only, unless explicitly authorized).<grok:render card_id="c30c7a" card_type="citation_card" type="render_inline_citation">
+<argument name="citation_id">0</argument>
+</grok:render>
+
+### Key Components
+The Threat Engine comprises several interconnected elements designed for robust threat handling:
+
+- **Multi-Modal ML Core**: Integrates ML models with signal processing and rule-based systems for comprehensive detection. It supports LLM-assisted triage to classify threats based on telemetry, historical data, and external feeds (e.g., CVEs).
+
+- **Jailbreak/Prompt-Injection Detector**: A safeguards module that sanitizes inputs to LLM components, detecting and mitigating adversarial attempts like prompt injections.
+
+- **Policy Governance Layer**: Ensures all threat assessments and recommendations adhere to predefined policies. This includes checks for operator approval in non-test modes, preventing unsupervised destructive actions.
+
+- **Data Processing Pipeline**: Handles sanitization of raw inbound data (from `data/raw/`) and transformation into processed formats (e.g., tokenized JSONL in `data/processed/`) for efficient ML inference.
+
+- **Logging and Auditing Interface**: Generates cryptographically signed, immutable logs stored in `data/logs/`, facilitating forensic analysis and compliance reporting.<grok:render card_id="737fb9" card_type="citation_card" type="render_inline_citation">
+<argument name="citation_id">0</argument>
+</grok:render>
+
+### ML Models and Adaptation
+The Threat Engine relies on a suite of ML models housed in `sentenialx/models/`, emphasizing adaptability and efficiency:
+
+- **Encoder Module** (`encoder/`): Contains `text_encoder.py` for encoding text-based threat data into embeddings suitable for vector-based retrieval and analysis.
+
+- **LoRA Adapter** (`lora/`): Features `lora_tuner.py` for Low-Rank Adaptation (LoRA) fine-tuning, allowing models to quickly adapt to new threat patterns using incident data without full retraining.
+
+- **Distillation Module** (`distill/`): Includes `distill_trainer.py` for creating lightweight, distilled models optimized for real-time inference in resource-constrained environments.
+
+- **Orchestrator Module** (`orchestrator/`): Manages model lifecycle with scripts like `orchestrate.py`, `versioning.py`, and `registry.py`. Supports packaging and deployment, e.g., via the command:
+  ```
+  python -m sentenialx.models.orchestrator.orchestrate --stage package
+  ```
+  This produces versioned artifacts in `~/.sentenialx/registry/<component>/<version>/`, complete with `manifest.json` and checksums.
+
+Models are stored in secure external registries (e.g., S3 or GCS) rather than the repository. The engine's adaptive AI continuously updates models through secure pipelines, learning from every incident to improve detection accuracy. Evaluation occurs via `sentenialx/tests/test_llm_accuracy.py` in isolated inference containers using sample datasets.<grok:render card_id="d38f64" card_type="citation_card" type="render_inline_citation">
+<argument name="citation_id">0</argument>
+</grok:render>
+
+### How It Works: Operational Flow
+1. **Ingestion**: Telemetry arrives via agents and is routed through the API Gateway.
+
+2. **Analysis**: The engine applies multi-modal processing—combining rules, signal analysis, and LLMs—to detect anomalies. For instance, it might use GPT-4.1 to analyze threat semantics in natural language.
+
+3. **Scoring and Classification**: Threats are scored based on confidence levels, classified (e.g., malware, phishing), and matched to playbooks.
+
+4. **Recommendation and Trigger**: Outputs recommendations to the Orchestrator, which enforces policies before action execution. Integration with the Pentest Suite allows for controlled emulation to validate detections.
+
+5. **Adaptation and Logging**: Post-processing, data refines models, and all steps are logged immutably.
+
+This flow supports offensive-defensive fusion, where the engine can simulate attacks (via red-team tools) to test and harden defenses, all within sandboxed environments to ensure safety.<grok:render card_id="dfac1a" card_type="citation_card" type="render_inline_citation">
+<argument name="citation_id">0</argument>
+</grok:render>
+
+### Files and Subdirectories
+The Threat Engine's implementation is distributed across the repository for modularity:
+
+- **Core Directory** (`sentenialx/`): Houses primary ML and engine code.
+  - `src/`: Core logic for threat processing.
+  - `models/`: ML artifacts and submodules (as detailed above), including `artifacts/` for generated outputs.
+  - `data/`: Datasets for training and evaluation.
+  - `docker/`: Container definitions for deployment and testing.
+  - `tests/`: Includes unit/integration tests and `test_llm_accuracy.py`.
+
+- **Services Directory** (`services/threat-engine/`): Dedicated service implementation, integrating with other services like `auth/`, `agent-manager/`, and `memory-core/`.
+
+- **Infrastructure Support** (`infra/`): Terraform, Helm charts, and Kubernetes secrets (e.g., for DATABASE_URL) to deploy the engine in production environments.
+
+- **Related Integrations**: Connects to `apps/api-gateway/` (e.g., routers like `proxy.py` for data proxying) and `apps/dashboard/` for visualization.
+
+Development uses Python 3.10+, with CI/CD enforcing linting, testing, and security scans. For local setup, leverage Docker Compose to spin up inference environments.<grok:render card_id="1e47d5" card_type="citation_card" type="render_inline_citation">
+<argument name="citation_id">0</argument>
+</grok:render>
