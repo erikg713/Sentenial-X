@@ -261,3 +261,175 @@ Follow Sentenial-X's `CONTRIBUTING.md`. Include tests, architecture notes, and s
 Proprietary with Apache-2.0 elements. Contact:
 - Security: security@yourorg.example
 - Sales/Dev: sales@yourorg.example
+
+# Integrating Cortex into Sentenial-X: Full Program Architecture
+
+## Overview of Integration
+Cortex, the Real-Time Threat Intelligence NLP Engine, is now fully integrated into Sentenial-X as a specialized module within the Threat Engine. This enhances Sentenial-X's multi-modal ML capabilities by adding advanced NLP for log and telemetry analysis. Cortex processes textual data (e.g., system logs, event sources) to classify threat intents, feeding results into the Threat Engine for scoring, triage, and playbook generation.
+
+Key integration benefits:
+- **Adaptive AI Enhancement**: Cortex models use Sentenial-X's centralized artifact registry (`sentenialx/models/artifacts/`) for versioned weights, metadata, hashes, and logs—ensuring consistency across components like LoRA tuning and distillation.
+- **Data Flow**: Telemetry from agents streams via API Gateway → Cortex (for NLP preprocessing) → Threat Engine (for multi-modal fusion) → Orchestrator → Countermeasure Agent.
+- **Governance Alignment**: Inherits Sentenial-X's policy-first rules, sandboxing, RBAC, and compliance logging. Emulations via Pentest Suite can simulate log-based attacks for testing Cortex outputs.
+- **Deployment**: Cortex runs as a microservice in Docker/K8s, orchestrated via infra/Helm, with shared secrets (e.g., DATABASE_URL).
+- **Feedback Loop**: Cortex classifications refine models in the artifact registry, improving platform-wide adaptation.
+
+This integration positions Cortex as the "Cortex" component referenced in Sentenial-X docs: an NLP engine for in-depth threat semantics analysis.
+
+## Updated Repository Layout
+Cortex is added under `services/` for modularity, sharing `sentenialx/models/` for artifacts. Updated high-level structure:
+
+```
+Sentenial-X/
+├── apps/
+│   ├── api-gateway/           # Routes to Cortex endpoints
+│   ├── dashboard/             # Visualizes Cortex predictions (e.g., threat intents)
+│   ├── pentest-suite/         # Simulates logs for Cortex testing
+│   └── ransomware-emulator/
+├── services/                  # Core services
+│   ├── auth/
+│   ├── agent-manager/
+│   ├── threat-engine/         # Integrates Cortex for NLP fusion
+│   ├── jailbreak-detector/
+│   ├── memory-core/
+│   ├── compliance-engine/
+│   ├── countermeasure-agent/
+│   ├── legal-shield/
+│   └── cortex/                # New: NLP engine
+│       ├── cli.py
+│       ├── daemon.py
+│       ├── server.py
+│       ├── gui.py
+│       ├── utils/
+│       └── __init__.py
+├── sentenialx/                # Shared ML core
+│   ├── src/
+│   ├── models/
+│   │   ├── artifacts/         # Centralized store (weights, metadata, hashes, logs)
+│   │   │   ├── distill/
+│   │   │   ├── lora/
+│   │   │   ├── encoder/
+│   │   │   └── registry.json # Master index; Cortex updates/loads from here
+│   │   ├── utils.py
+│   │   └── artifacts.py      # Helper for registry management
+│   ├── data/                  # Shared datasets (threat_intents.csv added here)
+│   └── docker/
+├── libs/
+├── infra/                     # Updated Helm charts include Cortex deployment
+├── tests/                     # Add Cortex integration tests
+├── scripts/
+├── .env.example
+├── requirements.txt           # Add Cortex deps (e.g., FastAPI, Kafka-Python)
+└── README.md
+```
+
+- **Artifact Centralization**: All models (including Cortex's) route through `artifacts/`. Orchestrator scripts (e.g., `orchestrate.py`) handle training/distillation, registering via `artifacts.py`.
+- **Datasets**: Move `threat_intents.csv` to `sentenialx/data/processed/` for sharing and sanitization.
+
+## Architecture Updates
+### Enhanced Data Flow
+```
+┌─────────────┐    ┌────────────────┐    ┌───────────────┐
+│ Event/Logs  │ ──▶ │ TypeScript     │ ──▶ │ WebSocket /   │
+│ Sources     │      │ Agent          │      │ API Gateway   │
+└─────────────┘      └────────────────┘      └───────────────┘
+                        │                          │
+                        ▼                          ▼
+              ┌───────────────────┐      ┌───────────────────┐
+              │ Cortex NLP Module │      │ Threat Engine     │
+              │ (classify intents)│◀────▶│ (multi-modal fusion)│
+              └───────────────────┘      └───────────────────┘
+                        │                          │
+                        ▼                          ▼
+              ┌───────────────────┐      ┌───────────────────┐
+              │ Memory Core       │      │ Orchestrator      │
+              └───────────────────┘      └───────────────────┘
+```
+
+1. **Ingestion**: Logs stream to API Gateway, routed to Cortex for NLP classification (e.g., intent detection via REST/Kafka).
+2. **Processing**: Cortex loads verified models from artifact registry, analyzes text, and outputs intents/scores.
+3. **Fusion**: Threat Engine combines Cortex outputs with other signals (e.g., embeddings from encoder module).
+4. **Response**: Orchestrator triggers Countermeasure Agent; Pentest Suite simulates for validation.
+5. **Logging**: All steps signed and stored in `data/logs/` via Compliance Engine.
+6. **Adaptation**: Training outputs (e.g., new LoRA weights) registered in `registry.json`, verified before deployment.
+
+### Model Management Integration
+Cortex's inference pipeline uses `artifacts.py`:
+- **Loading**: In `server.py` or `daemon.py`, call `get_artifact_path('distill')` and `verify_artifact('distill')`.
+- **Training**: CLI `python services/cortex/cli.py train` saves to `artifacts/distill/`, then `register_artifact('distill', path, '1.0.1')`.
+- **Orchestrator Hook**: Sentenial-X's `models/orchestrator/orchestrate.py` now includes Cortex stages (e.g., `--component cortex --stage package`).
+
+Example update in Cortex's `cli.py` (pseudocode):
+```python
+from sentenialx.models.artifacts import register_artifact, get_artifact_path
+
+# During training
+model.save('temp.onnx')
+path = Path('sentenialx/models/artifacts/distill/threat_student_v2.onnx')
+path.write_bytes(...)  # Move file
+register_artifact('distill', path, '2.0.0')
+
+# During inference
+if not verify_artifact('distill'): raise Error
+model.load(get_artifact_path('distill'))
+```
+
+### API Gateway Integration
+Add routes in `apps/api-gateway/app/routers/` (e.g., `cortex_routes.py`):
+```python
+from fastapi import APIRouter
+import requests
+
+router = APIRouter()
+
+@router.post("/cortex/predict")
+def proxy_to_cortex(data: dict):
+    response = requests.post("http://cortex-service:8080/predict", json=data)
+    return response.json()
+```
+Update `docker-compose.yml` to include Cortex service.
+
+### Dashboard Enhancements
+In `apps/dashboard/`, add widgets:
+- Threat intent charts from Cortex predictions.
+- Pull from API: `/cortex/predict` results visualized in `threat_panel`.
+
+### Pentest Suite & Testing
+- Simulate logs: Generate fake threat_intents data for Cortex input.
+- Integration tests: In `tests/integration/`, mock streams and verify Cortex → Threat Engine handoff.
+
+## Configuration & Environment
+Update `.env.example`:
+```
+# Existing
+DATABASE_URL=postgresql://...
+# Cortex-specific
+CORTEX_MODE=kafka
+CORTEX_TOPIC=pinet_logs
+CORTEX_MODEL_TYPE=distill
+DATA_PATH=sentenialx/data/processed/threat_intents.csv
+```
+Load in services via `os.getenv`.
+
+## Quickstart Updates
+In main README Quickstart:
+1. After starting API Gateway: `docker compose up cortex -d` (add to compose).
+2. Train Cortex: `python services/cortex/cli.py train --data sentenialx/data/processed/threat_intents.csv`
+3. Run: Integrates automatically via Kafka topic shared with agents.
+
+## Development Workflow
+- **Python**: Share `libs/core/` utils; enforce Black/Ruff/Mypy.
+- **ML**: Training runs in isolated containers; artifacts versioned in registry.
+- **CI/CD**: `.github/workflows/ci.yml` now builds/tests Cortex, scans models.
+- **Security**: Cortex inputs sanitized by Jailbreak Detector; actions policy-gated.
+
+## Testing & Validation
+- Unit: `tests/unit/cortex_test.py` for CLI/server.
+- Integration: Simulate full flow: Agent → Cortex → Threat Engine.
+- Model Eval: Extend `test_llm_accuracy.py` for Cortex intents.
+
+## Roadmap Impact
+- **Beta**: Full Cortex-Threat Engine fusion with real-time NLP triage.
+- **Enterprise**: SOC integrations, offline Cortex runners for air-gapped setups.
+
+This integration makes Sentenial-X more robust: Cortex adds NLP depth, centralized artifacts ensure maintainability, and governance keeps it safe/compliant. For code contributions, follow CONTRIBUTING.md and contact security@yourorg.example for access.
