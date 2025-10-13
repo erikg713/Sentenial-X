@@ -368,6 +368,41 @@ A simplified ASCII diagram from the repository illustrates the core flow involvi
               └───────────────────┘
 ```
 
+LoRA Tuning Details in Sentenial-X
+Overview
+Low-Rank Adaptation (LoRA) is a parameter-efficient fine-tuning technique integrated into Sentenial-X's adaptive AI pipeline. It allows the platform to quickly adapt large pre-trained models (e.g., LLMs like GPT-4.1 or BERT-based encoders in the Threat Engine and Cortex NLP module) to new threat data without retraining the entire model. This is crucial for Sentenial-X's continuous learning: models evolve from validated incidents, telemetry, and emulation outputs (e.g., from Pentest Suite) while minimizing computational costs and preserving base model integrity.
+In Sentenial-X:
+LoRA is applied in the sentenialx/models/lora/ module via lora_tuner.py.
+Tuned adapters (small weight matrices) are stored as artifacts in sentenialx/models/artifacts/lora/ (e.g., lora_weights_v1.bin), with metadata, hashes, and logs in the central registry (registry.json).
+Tuning feeds into the Orchestrator for packaging, ensuring versioned deployment across components like Threat Engine (for threat scoring) and Cortex (for intent classification).
+Benefits: Reduces GPU memory (tunes ~0.1% of parameters), enables fast updates (minutes vs. hours), and supports sandboxed inference for security.
+LoRA aligns with Sentenial-X's efficiency goals: adapters are distilled or merged post-tuning for lightweight deployment.
+How LoRA Works
+LoRA injects trainable low-rank matrices into frozen pre-trained model layers (e.g., attention weights), approximating full fine-tuning.
+Decomposition: For a weight matrix \( W \) (e.g., in a transformer layer), LoRA adds \( \Delta W = BA \), where \( B \) (rank r, dim d) and \( A \) (rank r, dim k) are low-rank matrices. Only \( B \) and \( A \) are trained; \( W \) is frozen.
+Rank \( r \) (e.g., 8-64) controls adapter size: lower r = fewer params (e.g., 0.1-1% of original).
+Update: Forward pass becomes \( W' = W + BA \).
+Training Process:
+Data Preparation: Use sanitized incident data from sentenialx/data/processed/ (e.g., JSONL of logs labeled with threats via ATT&CK framework).
+Injection: Apply LoRA to target layers (e.g., query/key/value in attention) using libraries like PEFT (Parameter-Efficient Fine-Tuning) from Hugging Face.
+Fine-Tuning: Train only adapters on threat-specific tasks (e.g., classification in Cortex: "malicious login" → high-risk score).
+Validation: Evaluate on holdout data; metrics (accuracy, F1) logged in artifact metadata.
+Merging & Deployment: Post-tuning, merge adapters into base weights or keep separate for modularity. Load via registry in inference (e.g., Threat Engine scores fused with LoRA-adapted embeddings).
+Math Example:
+Original weight: \( W \in \mathbb{R}^{d \times k} \)
+LoRA update: \( h = Wx + \frac{\alpha}{r} (BA)x \), where \( \alpha \) is scaling factor.
+Params trained: \( r(d + k) \) vs. full \( dk \).
+This enables Sentenial-X to adapt to emerging threats (e.g., new ransomware patterns) without full retraining, reducing costs in production (e.g., cloud GPU bills).
+Implementation in Sentenial-X
+Directory: sentenialx/models/lora/ contains lora_tuner.py for tuning logic, integrated with Orchestrator.
+Dependencies: Add to requirements.txt: peft, transformers, torch, datasets.
+Workflow:
+Collect data: From incidents or Pentest Suite simulations.
+Run tuning: Via Orchestrator CLI.
+Register: Save adapters to artifacts, update registry.
+Verify/Load: In services (e.g., Cortex server), check integrity before use.
+Policy Governance: Tuning requires operator approval; datasets sanitized via Jailbreak Detector. Adapters audited in signed logs for compliance (e.g., DoD chains-of-custody).
+
 This architecture ensures resilience, with features like automatic recovery flows and safe defaults (observation and emulation modes only, unless explicitly authorized).<grok:render card_id="c30c7a" card_type="citation_card" type="render_inline_citation">
 <argument name="citation_id">0</argument>
 </grok:render>
