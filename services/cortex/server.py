@@ -5,6 +5,17 @@ from sentenialx.models.artifacts import get_artifact_path, verify_artifact
 from transformers import pipeline, BertForSequenceClassification, BertTokenizer
 import logging
 
+# services/cortex/server.py (excerpt)
+from peft import PeftModel
+from sentenialx.models.artifacts import get_artifact_path, verify_artifact
+
+MODEL_TYPE = "lora"
+if not verify_artifact(MODEL_TYPE):
+    raise RuntimeError("LoRA integrity failed!")
+base_model = BertForSequenceClassification.from_pretrained("bert-base-uncased")
+lora_path = get_artifact_path(MODEL_TYPE)
+model = PeftModel.from_pretrained(base_model, lora_path.parent)
+
 app = FastAPI(title="Cortex NLP API")
 logging.basicConfig(level=logging.INFO)
 
