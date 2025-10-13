@@ -475,3 +475,205 @@ The Threat Engine's implementation is distributed across the repository for modu
 Development uses Python 3.10+, with CI/CD enforcing linting, testing, and security scans. For local setup, leverage Docker Compose to spin up inference environments.<grok:render card_id="1e47d5" card_type="citation_card" type="render_inline_citation">
 <argument name="citation_id">0</argument>
 </grok:render>
+
+## QLoRA Tuning Details in Sentenial-X
+
+### Overview
+Quantized Low-Rank Adaptation (QLoRA) is an advanced, memory-efficient extension of LoRA integrated into Sentenial-X's adaptive AI pipeline. It enables fine-tuning of large models (e.g., 7B+ parameter LLMs like Llama or GPT variants in the Threat Engine/Cortex) on consumer hardware by combining 4-bit quantization (NF4 format), double quantization, and paged optimizers with LoRA adapters. This reduces GPU memory usage by up to 80% (e.g., tuning a 7B model on a single 24GB GPU), making it ideal for Sentenial-X's resource-constrained environments like edge agents or offline SOCs.
+
+In Sentenial-X:
+- QLoRA is implemented in `sentenialx/models/lora/qlora_tuner.py` (extending standard LoRA).
+- Adapters are stored in `sentenialx/models/artifacts/lora/` with quantized weights (e.g., `qlora_weights_v1.bin`), metadata (quantization details), hashes, and training logs in the registry.
+- Orchestrator handles QLoRA stages for packaging and deployment, ensuring seamless updates to components like Threat Engine (threat scoring) and Cortex (intent classification from logs).
+- Benefits: Tunes massive models efficiently (hours on single GPU vs. days), preserves accuracy (via NF4 and double quant), supports adaptive learning from incidents/emulations without high costs.
+- Governance: Requires policy approval; runs in sandboxed containers with immutable audits.
+
+QLoRA builds on LoRA's low-rank matrices but quantizes base weights to 4-bit, reducing footprint while maintaining performance through techniques like block-wise quantization.
+
+### How QLoRA Works
+QLoRA minimizes memory by quantizing the pre-trained model and training only small LoRA adapters.
+
+1. **Quantization Setup**:
+   - **4-bit NormalFloat (NF4)**: Optimal for normally distributed weights; compresses to 4-bit with minimal loss.
+   - **Double Quantization**: Quantizes quantization constants (from 32-bit to 8-bit), saving ~0.37 bits/param.
+   - **Paged Optimizers**: Uses NVIDIA unified memory for optimizer states, preventing OOM errors.
+
+2. **LoRA Integration**:
+   - Freeze quantized base model; add LoRA matrices (rank r=64 typical for large models).
+   - Train adapters on dequantized activations during forward/backward passes.
+   - Update: \( W' = W_q + (BA) \), where \( W_q \) is 4-bit quantized.
+
+3. **Training Process**:
+   - **Data**: Sanitized JSONL from `data/processed/` (e.g., threat logs labeled via ATT&CK).
+   - **Injection**: Use PEFT + bitsandbytes for quantization; target attention layers.
+   - **Fine-Tuning**: Train adapters on tasks like sequence classification (Cortex) or generation (Threat Engine playbooks).
+   - **Evaluation**: Metrics (perplexity, F1) logged; merge adapters post-tuning for inference.
+
+Math Example:
+- Base weight \( W \) quantized to \( W_q = Q(W) \) (4-bit).
+- LoRA delta \( \Delta W = B A \) (fp16 or bf16).
+- Memory: Full fine-tune ~70GB for 7B model → QLoRA ~10GB.
+
+This enables Sentenial-X to adapt to evolving threats (e.g., new phishing patterns) rapidly and cost-effectively.
+
+### Implementation in Sentenial-X
+- **Directory**: `sentenialx/models/lora/` with `qlora_tuner.py`.
+- **Dependencies**: Add to `requirements.txt`: `peft`, `bitsandbytes`, `accelerate`, `transformers`, `sentencepiece`.
+- **Workflow**:
+  1. Prepare data: From incidents or Pentest Suite.
+  2. Run QLoRA: Via Orchestrator CLI.
+  3. Register: Save quantized adapters to artifacts.
+  4. Load: Dequantize on-the-fly in inference pipelines.
+- **Security**: Quantized models verified via hashes; tuning gated by RBAC and Legal Shield.
+
+#### Complete Code Snippet: `qlora_tuner.py`
+```python
+# sentenialx/models/lora/qlora_tuner.py
+import torch
+from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig, TrainingArguments
+from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
+from datasets import load_dataset
+from trl import SFTTrainer  # For supervised fine-tuning
+from sentenialx.models.artifacts import register_artifact
+from pathlib import Path
+import logging
+
+logging.basicConfig(level=logging.INFO)
+
+def tune_qlora(base_model_name: str = "meta-llama/Llama-2-7b-hf",  # Requires HF access
+               dataset_path: str = "sentenialx/data/processed/threat_intents.jsonl",
+               rank: int = 64, alpha: int = 16, dropout: float = 0.05,
+               bits: int = 4, output_dir: str = "sentenialx/models/artifacts/lora/qlora_weights_v1"):
+    """
+    QLoRA fine-tuning for large models.
+    - base_model_name: HF model ID (gated models need token).
+    - dataset_path: JSONL with 'text' (prompt) and 'label' (or formatted for SFT).
+    - rank: LoRA rank (higher for larger models).
+    """
+    # Quantization config
+    bnb_config = BitsAndBytesConfig(
+        load_in_4bit=True,
+        bnb_4bit_quant_type="nf4",  # NormalFloat4
+        bnb_4bit_compute_dtype=torch.bfloat16,  # Compute in bf16
+        bnb_4bit_use_double_quant=True,  # Double quant
+        bnb_4bit_quant_storage=torch.uint8
+    )
+    
+    # Load tokenizer and quantized model
+    tokenizer = AutoTokenizer.from_pretrained(base_model_name)
+    model = AutoModelForCausalLM.from_pretrained(
+        base_model_name,
+        quantization_config=bnb_config,
+        device_map="auto",  # Paged attention
+        trust_remote_code=True
+    )
+    model = prepare_model_for_kbit_training(model)  # Gradient checkpointing
+    
+    # LoRA config
+    lora_config = LoraConfig(
+        r=rank,
+        lora_alpha=alpha,
+        target_modules=["q_proj", "v_proj"],  # Llama-specific
+        lora_dropout=dropout,
+        bias="none",
+        task_type="CAUSAL_LM"
+    )
+    model = get_peft_model(model, lora_config)
+    model.print_trainable_parameters()  # ~0.1% params
+    
+    # Dataset (SFT format: e.g., {"text": "<prompt>### Response: <label>"})
+    dataset = load_dataset("json", data_files=dataset_path, split="train")
+    dataset = dataset.train_test_split(test_size=0.1)
+    
+    # Training args
+    training_args = TrainingArguments(
+        output_dir=output_dir,
+        num_train_epochs=3,
+        per_device_train_batch_size=4,  # Fits in memory
+        gradient_accumulation_steps=4,
+        optim="paged_adamw_8bit",  # Paged optimizer
+        logging_steps=10,
+        save_strategy="epoch",
+        evaluation_strategy="epoch",
+        bf16=True,  # Or fp16
+        report_to="none"
+    )
+    
+    # Trainer
+    trainer = SFTTrainer(
+        model=model,
+        args=training_args,
+        train_dataset=dataset["train"],
+        eval_dataset=dataset["test"],
+        tokenizer=tokenizer,
+        dataset_text_field="text",
+        max_seq_length=512
+    )
+    trainer.train()
+    
+    # Save adapter
+    model.save_pretrained(output_dir)
+    artifact_path = Path(output_dir) / "adapter_model.bin"
+    metadata = {
+        "base_model": base_model_name,
+        "quant_bits": bits,
+        "rank": rank,
+        "dataset": dataset_path,
+        "eval_loss": trainer.evaluate()["eval_loss"]
+    }
+    register_artifact("lora", artifact_path, "1.0.0", metadata)  # Reuse 'lora' type for QLoRA
+    logging.info("QLoRA tuning complete and registered.")
+
+if __name__ == "__main__":
+    tune_qlora()
+```
+
+#### Orchestrator Integration Update
+```python
+# sentenialx/models/orchestrator/orchestrate.py (excerpt)
+from sentenialx.models.lora.qlora_tuner import tune_qlora
+
+def tune_component(component: str):
+    if component == "qlora":
+        tune_qlora(dataset_path="sentenialx/data/processed/new_threats.jsonl")
+
+# CLI extension
+parser.add_argument("--component", choices=["lora", "qlora"])
+if args.stage == "tune" and args.component == "qlora":
+    tune_component(args.component)
+```
+
+Run: `python -m sentenialx.models.orchestrator.orchestrate --stage tune --component qlora`
+
+#### Loading in Inference (e.g., Threat Engine or Cortex)
+```python
+# services/threat-engine/main.py (excerpt)
+from peft import PeftModel
+from transformers import BitsAndBytesConfig, AutoModelForCausalLM
+from sentenialx.models.artifacts import get_artifact_path, verify_artifact
+
+MODEL_TYPE = "lora"  # Shared registry entry
+if not verify_artifact(MODEL_TYPE):
+    raise RuntimeError("QLoRA integrity failed!")
+
+bnb_config = BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_compute_dtype=torch.bfloat16)
+base_model = AutoModelForCausalLM.from_pretrained("meta-llama/Llama-2-7b-hf", quantization_config=bnb_config)
+qlora_path = get_artifact_path(MODEL_TYPE)
+model = PeftModel.from_pretrained(base_model, qlora_path.parent)
+```
+
+### Usage in Sentenial-X Pipeline
+1. **Trigger**: Post-incident analysis or scheduled; operator-approved via Dashboard.
+2. **Data Flow**: Logs → Cortex preprocessing → formatted prompts for QLoRA tasks (e.g., "Classify threat: [log]").
+3. **Deployment**: Merged adapters pushed to edge via mobile updater (`sentenialx_mobile/`); used in Countermeasure Agent for adaptive responses.
+4. **Validation**: `tests/unit/test_qlora.py` with small datasets; memory profiling ensures <10GB usage.
+5. **Rollback**: Registry versions support loading previous adapters.
+
+### Best Practices & Considerations
+- **Hyperparams**: r=64 for 7B models; use NF4 for weights, bf16 compute.
+- **Hardware**: Single RTX 4090/ A100 sufficient; enable `device_map="auto"` for multi-GPU.
+- **Accuracy**: Near full fine-tune (e.g., 95% retention); test with Pentest Suite simulations.
+- **Security**: HF tokens in secrets; quantized models encrypted; audits log quant details for compliance.
+- **Limitations**: Inference slower due to dequant (mitigate by merging); not for <1B models (use standard LoRA).
+
+QLoRA empowers Sentenial-X's Beastmode adaptability: Tune enterprise-scale models efficiently, hardening defenses against AI-driven threats. For access, obtain approvals and NDA.
