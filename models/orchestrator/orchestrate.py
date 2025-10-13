@@ -16,3 +16,15 @@ if __name__ == "__main__":
     args = parser.parse_args()
     if args.stage == "package" and args.component == "cortex":
         package_cortex()
+# sentenialx/models/orchestrator/orchestrate.py (excerpt)
+from sentenialx.models.lora.lora_tuner import tune_lora
+
+def tune_component(component: str):
+    if component == "lora":
+        tune_lora(dataset_path="sentenialx/data/processed/new_threats.csv")
+
+# CLI
+parser.add_argument("--stage", choices=["tune", "package"])
+parser.add_argument("--component", default="lora")
+if args.stage == "tune":
+    tune_component(args.component)
