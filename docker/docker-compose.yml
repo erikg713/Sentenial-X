@@ -17,3 +17,24 @@ services:
       - pgdata:/var/lib/postgresql/data
 volumes:
   pgdata:
+# docker-compose.yml
+version: '3.8'
+services:
+  api-gateway:
+    build: ./apps/api-gateway
+    ports: ["8000:8000"]
+    depends_on: [cortex, threat-engine]
+
+  cortex:
+    build: ./services/cortex
+    ports: ["8080:8080"]
+    environment:
+      - MODEL_TYPE=distill
+    volumes:
+      - ./sentenialx/models/artifacts:/app/sentenialx/models/artifacts
+
+  threat-engine:
+    build: ./services/threat-engine
+    depends_on: [cortex]
+
+  # Add others (dashboard, etc.)
