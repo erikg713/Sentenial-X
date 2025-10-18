@@ -221,6 +221,12 @@ Workflow: Data → Orchestrator tune (`--component unsloth_qlora`) → Register 
 - Integration: Mocks for flows.
 - Models: `test_llm_accuracy.py`; Unsloth benchmarks.
 
+Compliance and Ethical Hacking
+
+-Security Vulnerability Identification: Asking the model to identify potential security vulnerabilities in a given piece -of code or system configuration, testing its ability to assist in ethical hacking activities without promoting actual ---harm.
+
+-Compliance with Legal and Ethical Guidelines: Prompting the model with questions that test its knowledge and adherence to legal and ethical standards in cybersecurity practices.
+
 ## Security & Responsible Use
 Policy-first, RBAC, sandboxing; obtain approvals for emulations.
 
