@@ -33,5 +33,7 @@ const nextConfig = {
     return config;
   },
 };
-
+module.exports = {
+  reactStrictMode: true,
+};
 module.exports = nextConfig;
