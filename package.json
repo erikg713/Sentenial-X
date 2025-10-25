@@ -1,1 +1,21 @@
-
+{
+  "name": "sentenial-x",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/dashboard"
+  ],
+  "scripts": {
+    "dev:dashboard": "cd apps/dashboard && next dev",
+    "build:dashboard": "cd apps/dashboard && next build",
+    "start:dashboard": "cd apps/dashboard && next start"
+  },
+  "dependencies": {
+    "next": "^14.2.5",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.2.2"
+  }
+}
