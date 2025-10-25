@@ -1,12 +1,30 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
-
 from .dependencies import get_current_user, get_db_session
 from .database import User  # Assuming you have a User model
 from .config import JWT_SECRET_KEY, JWT_ALGORITHM, JWT_ACCESS_TOKEN_EXPIRE_MINUTES
 from jose import jwt
 from datetime import datetime, timedelta
+import httpx
+from pydantic import BaseModel
 
+router = APIRouter()
+
+class TextInput(BaseModel):
+    text: str
+    event_id: str
+
+@router.post("/cortex/analyze")
+async def proxy_to_cortex(input_data: TextInput):
+    async with httpx.AsyncClient() as client:
+        response = await client.post("http://cortex:8002/analyze", json=input_data.dict())
+        return response.json()
+
+@router.get("/threats")
+async with httpx.AsyncClient() as client:
+        response = await client.get("http://threat-engine:8001/threats")
+        return response.json()
+    
 router = APIRouter()
 
 
