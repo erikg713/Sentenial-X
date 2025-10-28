@@ -1,6 +1,6 @@
 # Core API framework
 fastapi==0.111.0
-pydantic==2.11.7
+pydantic==2.12.3
 uvicorn[standard]==0.23.1
 
 # Environment management
@@ -17,7 +17,7 @@ databases[postgresql]==1.2.2
 loguru==0.7.1
 
 # For CORS support (already included in FastAPI)
-starlette==0.47.2
+starlette==0.49.1
 
 # For testing (optional)
 pytest==8.3.2
