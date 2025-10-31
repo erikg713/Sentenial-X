@@ -3,7 +3,7 @@
 # Core Python dependencies
 numpy>=1.25.0
 pandas>=2.1.0
-
+express cors
 # Logging & Telemetry
 requests>=2.32.0
 cryptography>=41.0.0   # For optional encrypted telemetry
