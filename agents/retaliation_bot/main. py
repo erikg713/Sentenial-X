@@ -1,19 +1,51 @@
 import asyncio
 import random
+import logging
 from models import ThreatEvent
 from bot import RetaliationBot
 
+# Set up logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
 async def simulate(bot: RetaliationBot):
+    """
+    Asynchronously simulate handling multiple threat events concurrently.
+    """
     vectors = ["SQL Injection", "Port Scan", "RCE", "Brute Force"]
+    events = []
     for _ in range(5):
-        event = ThreatEvent(
-            source_ip=f"10.0.0.{random.randint(1, 255)}",
-            vector=random.choice(vectors),
-            severity=random.randint(1, 10)
-        )
-        await bot.handle_event(event)
+        try:
+            event = ThreatEvent(
+                source_ip=f"10.0.0.{random.randint(1, 255)}",
+                vector=random.choice(vectors),
+                severity=random.randint(1, 10)
+            )
+            events.append(event)
+        except Exception as e:
+            logger.error(f"Error creating event: {e}")
+            continue  # Skip invalid events
+
+    # Handle events concurrently using asyncio.gather
+    if events:
+        try:
+            await asyncio.gather(*(bot.handle_event(event) for event in events))
+        except Exception as e:
+            logger.error(f"Error during concurrent event handling: {e}")
 
 if __name__ == "__main__":
-    bot = RetaliationBot()
-    bot.activate()
-    asyncio.run(simulate(bot))
+    bot = None
+    try:
+        bot = RetaliationBot()
+        bot.activate()
+        asyncio.run(simulate(bot))
+    except Exception as e:
+        logger.error(f"Error in main execution: {e}")
+    finally:
+        if bot:
+            try:
+                bot.deactivate()  # Assuming RetaliationBot has a deactivate method for cleanup
+            except AttributeError:
+                logger.warning("RetaliationBot does not have a deactivate method.")
+            except Exception as e:
+                logger.error(f"Error deactivating bot: {e}")
