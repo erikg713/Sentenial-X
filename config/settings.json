@@ -43,4 +43,5 @@
     "artifact_retention_days": 7
   }
 }
-
+export JWT_SECRET=$(openssl rand -hex 32)
+"db_url": "postgresql://sentenialx:${DB_PASSWORD}@db:5432/telemetry"
