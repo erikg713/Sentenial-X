@@ -98,6 +98,62 @@ Sentenial-X/
 ├── package.json               # Node.js dependencies
 └── README.md                  # This file
 ```
+```
+sentenial-x/
+├── sentenialx/                  # Python package root (importable)
+│   ├── __init__.py
+│   ├── __main__.py             # python -m sentenialx
+│   │
+│   ├── core/                   # Hot-path pipeline
+│   │   ├── text_analyzer.py
+│   │   ├── feature_extractor.py
+│   │   ├── anomaly_detector.py
+│   │   ├── predictive_engine.py
+│   │   ├── decision_engine.py
+│   │   └── __init__.py
+│   │
+│   ├── telemetry/              # ←←← THIS IS WHERE telemetry.py LIVES
+│   │   ├── __init__.py         # exports: from .collector import emit_telemetry
+│   │   ├── collector.py        # ← renamed from telemetry.py → collector.py
+│   │   ├── schema.py           # Pydantic models for telemetry records
+│   │   ├── sinks/              # modular sinks (easy to add Splunk/Datadog)
+│   │   │   ├── console.py
+│   │   │   ├── file.py
+│   │   │   ├── jsonl.py
+│   │   │   ├── webhook.py
+│   │   │   ├── kafka.py
+│   │   │   └── opentelemetry.py
+│   │   │
+│   │   ├── alerts/             # alert backends
+│   │   │   ├── slack.py
+│   │   │   ├── pagerduty.py
+│   │   │   └── email.py
+│   │   │
+│   │   └── config.json         # or .yaml
+│   │
+│   ├── models/                 # ML models, embeddings, isolation forest, etc.
+│   ├── utils/                  # helpers, redaction, hashing, etc.
+│   ├── api/                    # FastAPI/Quart endpoints
+│   ├── cli/                    # click/typer commands
+│   └── config/                 # pydantic-settings, env vars
+│
+├── tests/
+│   ├── unit/
+│   │   └── test_telemetry_collector.py
+│   └── integration/
+│
+├── configs/
+│   └── telemetry_config.json       # ← deployed config (not in package)
+│
+├── logs/
+│   ├── telemetry.log
+│   └── telemetry.jsonl
+│
+├── pyproject.toml
+├── Dockerfile
+└── README.md
+```
+
 
 ## Architecture Overview
 
