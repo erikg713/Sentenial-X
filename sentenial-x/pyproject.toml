@@ -1,0 +1,80 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sentenial-x-ai"
+version = "0.1.0"
+description = "Sentenial-X AI — Autonomous Cyber Defense, Simulation, and RL Agents"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+authors = [
+    { name = "Sentenial-X Team", email = "contact@sentenialx.io" }
+]
+keywords = ["cybersecurity", "reinforcement-learning", "autonomous-agents", "rl", "ai"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: System Administrators",
+    "Topic :: Security",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+]
+
+dependencies = [
+    "stable-baselines3==2.2.0",
+    "gym==0.26.5",
+    "numpy",
+    "torch>=2.0",
+    "confluent-kafka",
+    "sqlalchemy",
+    "psycopg2-binary",
+    "tqdm",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-cov",
+    "black",
+    "flake8",
+    "mypy",
+    "pre-commit",
+]
+docs = [
+    "sphinx",
+    "sphinx-rtd-theme",
+]
+
+[project.urls]
+Homepage = "https://github.com/your-org/sentenial-x-ai"
+Documentation = "https://docs.sentenialx.io"
+Source = "https://github.com/your-org/sentenial-x-ai"
+Tracker = "https://github.com/your-org/sentenial-x-ai/issues"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["sentenial_x*"]
+
+[tool.black]
+line-length = 100
+target-version = ["py310"]
+
+[tool.flake8]
+max-line-length = 100
+extend-ignore = ["E203", "W503"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra -q --cov=sentenial_x --cov-report=term-missing"
+
+[tool.coverage.run]
+branch = true
+source = ["sentenial_x"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
