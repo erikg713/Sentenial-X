@@ -312,3 +312,15 @@ Proprietary/Apache-2.0. Contact: security@yourorg.example / sales@yourorg.exampl
 - Tests: `pytest tests/unit -q`
 - Build: `docker build -t sentenialx/api-gateway .`
 - Tune: `python -m sentenialx.models.orchestrator.orchestrate --stage package`
+# Sentenial-X
+
+ML-Powered Real-time Content Moderator
+
+- 1,200 req/s on CPU
+- ONNX + Numba + Async
+- Full Telemetry + OTEL
+- Kubernetes Zero-Downtime
+
+```bash
+pip install -e .
+python -m sentenialx --api
