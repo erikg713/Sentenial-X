@@ -100,19 +100,19 @@ matplotlib
 pip install torch torchvision
 
 # RL libraries
-pip install stable-baselines3[extra]   # PPO, A2C implementations
-pip install gym
-pip install pettingzoo                 # multi-agent envs
-pip install rllib                     # optional: Ray RLlib for scalable MARL (pip install 'ray[rllib]')
+stable-baselines3[extra]   # PPO, A2C implementations
+gym
+pettingzoo                 # multi-agent envs
+rllib                     # optional: Ray RLlib for scalable MARL (pip install 'ray[rllib]')
 
 # telemetry / infra
-pip install confluent-kafka           # Kafka client
-pip install sqlalchemy psycopg2-binary
-pip install pandas numpy
+confluent-kafka           # Kafka client
+sqlalchemy psycopg2-binary
+pandas numpy
 
 # optional advanced
-pip install gymnasium                 # modern gym replacement if needed
-pip install wandb                     # experiment logging
+gymnasium                 # modern gym replacement if needed
+wandb                     # experiment logging
 fastapi==0.115.0
 uvicorn==0.30.6
 torch==2.4.1
