@@ -1,0 +1,7 @@
+{
+    "event_type": "exec",
+    "entropy": 7.2,
+    "syscalls": ["open", "write", "execve", "ptrace"],
+    "anomaly_score": 0.91,
+    "behavior_score": 0.77
+}
