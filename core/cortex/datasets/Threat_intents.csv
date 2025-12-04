@@ -1,1 +1,31 @@
-
+intent_id,threat_intent,description,severity,category,confidence
+T001,Privilege Escalation,Attempts to gain higher-level permissions or root access,High,Access Control,0.95
+T002,Remote Code Execution,Execution of arbitrary code on a remote system,Critical,Exploitation,0.97
+T003,Data Exfiltration,Unauthorized extraction of data outside the protected environment,Critical,Data Theft,0.96
+T004,Lateral Movement,Propagation through internal network to reach deeper systems,High,Movement,0.92
+T005,Malware Deployment,Delivery of malicious payload including trojans and worms,High,Malicious Payload,0.93
+T006,Reconnaissance,Scanning or mapping of systems and network topology,Moderate,Discovery,0.76
+T007,Phishing Attempt,Social engineering attempts to steal credentials,Moderate,Social Engineering,0.80
+T008,Brute Force Login,Automated repetitive login attempts to crack passwords,High,Authentication,0.88
+T009,Supply Chain Compromise,Injection of malicious components into dependency chain,Critical,Integrity Attack,0.94
+T010,Command and Control (C2),Establishment of persistent communication with attacker-controlled host,Critical,Beaconing,0.97
+T011,Anomalous Syscall Pattern,Unexpected or rare syscall behavior indicative of exploitation,High,Behavioral,0.91
+T012,High Entropy Binary,Indicates obfuscated or packed executable,Moderate,Obfuscation,0.82
+T013,Suspicious Memory Injection,Process-level injection indicating code tampering,High,Memory Attack,0.93
+T014,Unauthorized API Access,Access to privileged or internal-only APIs,High,Access Control,0.89
+T015,Configuration Tampering,Manual or automated changes to security-critical configs,Moderate,Integrity,0.74
+T016,Protocol Abuse,Abnormal use of protocols (DNS tunnels, ICMP covert channels),High,Covert Channel,0.90
+T017,Zero-Day Behavior Pattern,Anomalous patterns consistent with undisclosed vulnerabilities,Critical,Zero-Day,0.98
+T018,Unauthorized LLM Interaction,Malicious probing of system-level AI interfaces,High,AI Security,0.85
+T019,Resource Hijacking,Cryptomining or resource theft,High,Resource Abuse,0.87
+T020,Credential Stuffing,Automation with breached username/password lists,Moderate,Authentication,0.79
+T021,Fileless Malware,Execution entirely in memory without binaries,Critical,Advanced Threat,0.96
+T022,Anomalous Beaconing,Regular intervals suggesting unknown C2 channel,High,Beaconing,0.92
+T023,Exploit Kit Pattern,Indicators of common exploit kit behaviors,High,Exploitation,0.89
+T024,Injection Attack,Code injection via input tampering (SQLi, RCE, deserialization),Critical,Injection,0.95
+T025,Unauthorized Privilege Drop,Binary changing context unexpectedly,Moderate,Abnormal Behavior,0.72
+T026,IoT Exploitation,Compromise of edge or IoT device endpoints,High,IoT Attack,0.86
+T027,Container Escape Attempt,Attempts to break isolation boundaries in Docker/Kubernetes,Critical,Isolation Bypass,0.94
+T028,Kernel Exploit Behavior,Syscall + memory pattern suggesting kernel-level exploit,Critical,Kernel Attack,0.97
+T029,Sandbox Evasion,Behaviors indicating detection and evasion of analysis environment,High,Evasion,0.91
+T030,Time-Based Obfuscation,Delayed execution or sleep-based analysis evasion,Moderate,Evasion,0.78
