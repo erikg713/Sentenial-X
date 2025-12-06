@@ -1,4 +1,3 @@
-```markdown
 # Cortex: Real-Time Threat Intelligence NLP Engine
 
 **Cortex** is the high-performance Natural Language Processing (NLP) engine powering **Sentenial-X**, a next-generation autonomous cyber-defense platform. It continuously analyzes logs, telemetry, alerts, and unstructured text to detect attacker intent, classify threat behaviors, and enrich multi-modal fusion in the Threat Engine.
