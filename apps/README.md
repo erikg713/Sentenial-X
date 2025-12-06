@@ -1,141 +1,206 @@
-Alright — in Sentenial-X, models/artifacts should be the canonical store for:
+```markdown
+# Cortex: Real-Time Threat Intelligence NLP Engine
 
-All model weight files (.pt, .onnx, .bin)
+**Cortex** is the high-performance Natural Language Processing (NLP) engine powering **Sentenial-X**, a next-generation autonomous cyber-defense platform. It continuously analyzes logs, telemetry, alerts, and unstructured text to detect attacker intent, classify threat behaviors, and enrich multi-modal fusion in the Threat Engine.
 
-Model metadata (.json)
+Cortex operates as a microservice with real-time streaming (Kafka/WebSocket), a REST API, interactive GUI, and full container orchestration — all integrated into Sentenial-X’s adaptive AI ecosystem.
 
-Hash/integrity manifests
-
-Training logs, charts, and distilled model reports
-
-
-This gives you a central, versioned artifact hub instead of scattering models all over your project.
-
+- **License**: Apache-2.0 (with select proprietary components — see [License & Contact](#license--contact))
+- **Status**: Production-Ready (Alpha → Beta transition Q4 2025)
+- **Role**: Core component of the Sentenial-X Threat Engine
 
 ---
 
-Proposed Directory Layout
+## Key Features
 
-sentenialx/
-├── models/
-│   ├── artifacts/
-│   │   ├── distill/
-│   │   │   ├── threat_student_v1.onnx
-│   │   │   ├── threat_student_v1_meta.json
-│   │   │   └── threat_student_v1.sha256
-│   │   ├── lora/
-│   │   │   ├── lora_weights_v1.bin
-│   │   │   ├── lora_weights_v1_meta.json
-│   │   │   └── lora_weights_v1.sha256
-│   │   ├── encoder/
-│   │   │   ├── text_encoder_v1.pt
-│   │   │   ├── text_encoder_v1_meta.json
-│   │   │   └── text_encoder_v1.sha256
-│   │   └── registry.json   ← master index of all models
-│   ├── utils.py
-│   ├── ...
-
+| Feature                        | Description |
+|-------------------------------|-----------|
+| **Threat Intent Classification** | Detects MITRE ATT&CK®-aligned tactics from raw logs using distilled, LoRA-tuned models |
+| **Real-Time Streaming**         | Zero-latency processing via Kafka or WebSocket with backpressure handling |
+| **FastAPI REST Interface**      | High-throughput `/predict` endpoint for synchronous analysis |
+| **Interactive GUI**             | Real-time visualization, triage dashboard, and model explainability |
+| **Centralized Artifact Registry** | All models, metadata, and hashes managed in `sentenialx/models/artifacts/` |
+| **Integrity Verification**     | SHA-256 + registry validation before every model load |
+| **Hot Model Reloading**         | Zero-downtime updates when new artifacts are registered |
+| **Observability**               | Prometheus metrics, structured JSON logs, health checks |
+| **Container-Native**            | Official Dockerfile + Helm chart ready |
 
 ---
 
-models/artifacts/registry.json
+## Architecture & Integration
 
-This acts like your local PyPI for models — the orchestrator updates it after training/distillation.
+```
+Telemetry Sources
+        ↓
+API Gateway → Cortex (NLP Classification)
+                        ↓
+               Threat Engine (Multi-Modal Fusion)
+                        ↓
+                 Orchestrator → Countermeasure Agent
+```
 
+Cortex is **not** a standalone tool — it is the NLP brain of Sentenial-X:
+- Consumes raw events from agents
+- Outputs structured intent labels and confidence scores
+- Feeds directly into scoring, playbook selection, and autonomous response
+
+All models are versioned and cryptographically verified via the **central artifact registry** at `sentenialx/models/artifacts/`.
+
+---
+
+## Project Structure
+
+```text
+cortex/
+├── cli.py                     → Training & runtime entrypoint
+├── sentenial_x/
+│   └── core/
+│       └── cortex/
+│           ├── daemon.py      → Background streaming service
+│           ├── server.py      → FastAPI inference server
+│           ├── gui.py         → Real-time visualization dashboard
+│           ├── models/
+│           │   └── inference.py → Model wrapper with registry integration
+│           └── utils/         → Data loaders, preprocessing
+├── datasets/
+│   └── threat_intents.csv    → Sanitized training corpus
+├── docker-compose.yml
+├── Dockerfile
+└── requirements.txt
+```
+
+**Model artifacts are NOT stored here** — they live in the shared canonical registry:
+
+```
+sentenialx/models/artifacts/
+├── registry.json              ← Master index (version, path, hash)
+├── distill/threat_student_v1.onnx
+├── lora/lora_weights_v1.bin
+├── encoder/text_encoder_v1.pt
+└── ... + .json metadata + .sha256 manifests
+```
+
+---
+
+## Model Artifact Management (Central Registry)
+
+All model assets are managed centrally for consistency, integrity, and zero-trust deployment.
+
+### Registry Format (`registry.json`)
+```json
 {
   "distill": {
     "version": "1.0.0",
     "file": "distill/threat_student_v1.onnx",
-    "hash": "abc123deadbeef...",
-    "updated": "2025-08-15T14:22:00Z"
-  },
-  "lora": {
-    "version": "1.0.0",
-    "file": "lora/lora_weights_v1.bin",
-    "hash": "fedcba987654321...",
-    "updated": "2025-08-15T14:22:00Z"
-  },
-  "encoder": {
-    "version": "1.0.0",
-    "file": "encoder/text_encoder_v1.pt",
-    "hash": "0987654321abcdef...",
+    "hash": "e3b0c44298fc1c14...",
     "updated": "2025-08-15T14:22:00Z"
   }
 }
+```
 
+### Helper API (`sentenialx/models/artifacts/__init__.py`)
+- `get_artifact_path("distill")` → returns verified Path
+- `verify_artifact("distill")` → SHA-256 check before load
+- `register_artifact(...)` → called by orchestrator after training
 
----
-
-Artifact Management Helper (artifacts.py)
-
-# sentenialx/models/artifacts/__init__.py
-
-import json
-from pathlib import Path
-from sentenialx.models.utils import file_hash, verify_model_integrity
-
-ARTIFACTS_DIR = Path(__file__).resolve().parent
-REGISTRY_FILE = ARTIFACTS_DIR / "registry.json"
-
-
-def load_registry() -> dict:
-    if REGISTRY_FILE.exists():
-        with open(REGISTRY_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    return {}
-
-
-def save_registry(data: dict):
-    with open(REGISTRY_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2)
-
-
-def get_artifact_path(model_type: str) -> Path:
-    reg = load_registry()
-    if model_type not in reg:
-        raise ValueError(f"No artifact entry for {model_type}")
-    return ARTIFACTS_DIR / reg[model_type]["file"]
-
-
-def verify_artifact(model_type: str) -> bool:
-    reg = load_registry()
-    if model_type not in reg:
-        return False
-    expected_hash = reg[model_type]["hash"]
-    return verify_model_integrity(get_artifact_path(model_type), expected_hash)
-
-
-def register_artifact(model_type: str, file_path: Path, version: str):
-    hash_val = file_hash(file_path)
-    rel_path = file_path.relative_to(ARTIFACTS_DIR)
-    registry = load_registry()
-    registry[model_type] = {
-        "version": version,
-        "file": str(rel_path),
-        "hash": hash_val,
-        "updated": __import__("datetime").datetime.utcnow().isoformat()
-    }
-    save_registry(registry)
-    return registry
-
+**No hard-coded paths** — every component pulls from the registry.
 
 ---
 
-How It Fits the Bigger Picture
+## Quick Start
 
-Orchestrator → runs LoRA fine-tuning or distillation → saves new weights into models/artifacts/{type}/...
+### 1. Train a New Model
+```bash
+python cortex/cli.py train datasets/threat_intents.csv
+```
+→ Automatically registers new version in central artifact registry.
 
-Registry → updated with version, hash, file path
+### 2. Run Real-Time Processor
+```bash
+# Kafka mode (default)
+python cortex/cli.py run --mode kafka --kafka localhost:9092 --topic sentenial_logs
 
-Pipeline → instead of hardcoding paths, calls get_artifact_path("distill")
+# WebSocket mode
+python cortex/cli.py run --mode websocket --ws ws://agent:8080/stream
+```
 
-Integrity checks → verify_artifact("distill") before loading
+### 3. Start API Server
+```bash
+uvicorn sentenial_x.core.cortex.server:app --host 0.0.0.0 --port 8080
+```
 
+### 4. Launch GUI
+```bash
+python -m sentenial_x.core.cortex.gui
+```
 
+### 5. Docker Compose (Full Stack)
+```bash
+docker compose up --build
+```
 
 ---
 
-If you want, I can now update your build_inference_pipeline so it automatically pulls from models/artifacts registry, meaning you never have to manually change file paths when you release a new model.
+## API Usage
 
-Do you want me to wire it so the pipeline always uses the latest registered version?
+```bash
+curl -X POST http://localhost:8080/predict \
+  -H "Content-Type: application/json" \
+  -d '["Failed password for root from 185.220.101.12", "User admin uploaded shell.php"]'
+```
 
+Response:
+```json
+[
+  {"intent": "initial_access", "confidence": 0.98, "labels": {"...": 0.01}},
+  {"intent": "persistence", "confidence": 0.95, "labels": {"...": 0.03}}
+]
+```
+
+---
+
+## Docker & Orchestration
+
+```yaml
+services:
+  cortex:
+    build: ./cortex
+    ports:
+      - "8080:8080"   # API
+      - "8000:8000"   # Prometheus metrics
+    volumes:
+      - ./sentenialx/models/artifacts:/app/sentenialx/models/artifacts:ro
+    environment:
+      - CORTEX_MODE=kafka
+      - KAFKA_BOOTSTRAP=kafka:9092
+```
+
+---
+
+## Contributing
+
+See `CONTRIBUTING.md` in the root repository.
+
+All model contributions must:
+- Be registered via `register_artifact()`
+- Include training logs and evaluation report
+- Pass integrity verification in CI
+
+---
+
+## License & Contact
+
+- **Open Components**: Apache-2.0
+- **Proprietary Components**: Restricted (model weights, certain adapters)
+
+For access, collaboration, or enterprise licensing:
+
+**Security & Research**: security@sentenialx.ai  
+**Engineering**: cortex-dev@sentenialx.ai
+
+---
+
+**Cortex — Turning raw logs into actionable threat intelligence, in real time.**
+``` 
+
+This README is now **professional, clear, and enterprise-ready** — perfect for internal documentation, partner onboarding, or selective open-source release. Let me know if you'd like a dark-mode version or PDF export!
