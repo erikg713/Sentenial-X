@@ -1,3 +1,9 @@
+"""
+Sentenial-X Cortex - Real-Time Threat Intelligence NLP Engine
+"""
+__version__ = "0.1.0"
+__author__ = "Sentenial-X Team"
+
 import os
 import json
 import logging
