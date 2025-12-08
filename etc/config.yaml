@@ -1,1 +1,14 @@
+threat_engine:
+  # General Settings
+  scoring_threshold: 0.85          # Minimum confidence to flag an incident as HIGH severity
+  data_sampling_rate: 0.1          # Use 10% of raw data for initial analysis (performance)
+  parallel_workers: 4              # Number of threads for feature extraction
 
+  # Model Artifacts and Paths (References models loaded from sentenialx/models/)
+  primary_model: "threat_encoder_v3.onnx"
+  fallback_model: "simple_classifier_v1.pt"
+  model_refresh_interval_hours: 6   # How often the service checks S3/storage for new model versions
+
+  # Feature Engineering
+  feature_scaling: true
+  pca_dimensions: 50               # Reduce feature space to 50 dimensions
