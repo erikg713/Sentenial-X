@@ -1,14 +1,44 @@
+# etc/config.yaml
+
+# Configuration file for Sentenial-X application parameters
+
+# --- 1. THREAT ENGINE / ML Settings ---
 threat_engine:
-  # General Settings
-  scoring_threshold: 0.85          # Minimum confidence to flag an incident as HIGH severity
-  data_sampling_rate: 0.1          # Use 10% of raw data for initial analysis (performance)
-  parallel_workers: 4              # Number of threads for feature extraction
+  # The confidence score required to flag an alert as High Risk
+  scoring_threshold: 0.85 
+  # Path to the primary detection model artifact
+  primary_model_path: "sentenialx/models/artifacts/threat_encoder_v3.onnx"
+  # How often to check for a new model version (in hours)
+  model_refresh_interval_hours: 6
+  # Feature reduction technique
+  pca_dimensions: 50 
 
-  # Model Artifacts and Paths (References models loaded from sentenialx/models/)
-  primary_model: "threat_encoder_v3.onnx"
-  fallback_model: "simple_classifier_v1.pt"
-  model_refresh_interval_hours: 6   # How often the service checks S3/storage for new model versions
+# --- 2. CORTEX (LLM/NLP) Settings ---
+cortex:
+  # LLM tuning parameters
+  model_name: "Sentenial-LoRA-7B-v2"
+  max_tokens: 1024
+  temperature: 0.2  # Low temperature for deterministic security analysis
+  
+  # RAG (Retrieval Augmented Generation) settings
+  rag_enabled: true
+  retrieval_k: 5 # Retrieve 5 nearest neighbors from memory-core
 
-  # Feature Engineering
-  feature_scaling: true
-  pca_dimensions: 50               # Reduce feature space to 50 dimensions
+# --- 3. COUNTERMEASURE AGENT Policies ---
+countermeasure_agent:
+  # Safety and Approval
+  max_automated_actions_per_hour: 10
+  # Actions requiring external approval from the legal-shield service
+  actions_requiring_legal_approval: 
+    - ISOLATE_HOST_GLOBAL
+    - DATA_WIPE
+  
+  # Default action timing
+  quarantine_duration_minutes: 60
+
+# --- 4. DEEP EMULATION / RL Settings ---
+deep_emulation:
+  # Parameters for the CyberBattleSim environment
+  default_scenario: "internal_network_v2"
+  rl_agent_checkpoint: "sentenialx/models/artifacts/defender_policy_v4.pt"
+  max_training_episodes: 50000
