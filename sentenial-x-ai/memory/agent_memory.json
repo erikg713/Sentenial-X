@@ -1,3 +1,55 @@
+import os
+import json
+from datetime import datetime
+
+# NOTE: Using the same file path constant for consistency
+MEMORY_FILE = "memory/agent_memory.json"
+
+def get_successful_findings(finding_keywords=None):
+    """
+    Reads the agent memory log and filters entries based on a list of keywords.
+
+    Args:
+        finding_keywords (list, optional): A list of strings (e.g., ['Found', 'Success', 'Hit'])
+                                           to look for in the 'event' text. 
+                                           Defaults to common success indicators if None.
+
+    Returns:
+        list: A list of dictionaries containing only the events that match the keywords.
+    """
+    if finding_keywords is None:
+        finding_keywords = ['Found', 'Success', 'Vulnerability', 'Hit', 'Credentials']
+
+    # 1. Check if file exists before attempting to read
+    if not os.path.exists(MEMORY_FILE):
+        print(f"Error: Memory file not found at {MEMORY_FILE}")
+        return []
+
+    try:
+        # 2. Load all memory entries
+        with open(MEMORY_FILE, "r") as f:
+            all_memory = json.load(f)
+            
+        # 3. Filter using list comprehension and keyword check
+        successful_findings = [
+            entry for entry in all_memory 
+            if any(keyword.lower() in str(entry.get("event", "")).lower() for keyword in finding_keywords)
+        ]
+        
+        return successful_findings
+        
+    except json.JSONDecodeError:
+        print(f"Error: Could not decode JSON from {MEMORY_FILE}. File may be corrupt.")
+        return []
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
+        return []
+
+# --- Example Usage ---
+# successful_results = get_successful_findings()
+# for finding in successful_results:
+#     print(f"[{finding['timestamp'][:19]}] HIT: {finding['event']}")
+
 {
   "metadata": {
     "version": "1.0.0",
