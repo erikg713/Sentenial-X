@@ -8,10 +8,25 @@ commands within the Sentenial X AI system.
 import logging
 import importlib
 import pkgutil
+import os
 from typing import Dict, Callable, Any, Optional, List
 
 # Configure logging for the command package
 logger = logging.getLogger(__name__)
+
+# Configure file handler for agent heartbeat logs
+_LOG_FILE_PATH = "sentenial-x-ai/logs/agent_heartbeat.log"
+try:
+    # Ensure the directory exists
+    os.makedirs(os.path.dirname(_LOG_FILE_PATH), exist_ok=True)
+    
+    # Add file handler
+    _handler = logging.FileHandler(_LOG_FILE_PATH)
+    _handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+    logger.addHandler(_handler)
+    logger.setLevel(logging.INFO)
+except OSError as e:
+    print(f"Warning: Could not configure file logging to {_LOG_FILE_PATH}: {e}")
 
 # Registry to hold map of command_name -> handler_function
 _COMMAND_REGISTRY: Dict[str, Dict[str, Any]] = {}
@@ -122,5 +137,4 @@ __all__ = [
     "load_commands_from_package",
     "CommandError",
     "UnknownCommandError"
-    "train", "eval", "serve", "telemetry"
 ]
