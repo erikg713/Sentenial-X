@@ -5,6 +5,8 @@
 ### Overview
 The Countermeasure Agent is a core component of the Sentenial-X cyber-defense platform, serving as a policy-driven executor for safe and controlled responses to detected threats. It enables autonomous countermeasures such as quarantine, rerouting, and automatic recovery, while ensuring all actions are governed by strict policies to prevent unintended disruptions. Designed for resilience, it operates in sandboxed environments (using WASM or containers) and supports the platform's adaptive AI by incorporating incident feedback to refine future responses. This component embodies Sentenial-X's "offensive-defensive fusion," allowing for controlled emulation and self-healing mechanisms, all while prioritizing compliance and auditability.
 
+-----------------------------------------------------------------------------------------------
+
 ### High-Level Architecture and Integration
 The Countermeasure Agent integrates seamlessly into Sentenial-X's modular architecture, acting as the execution layer following threat analysis. It is triggered only after policy validation, ensuring safe operation within the broader system flow.
 
@@ -17,9 +19,7 @@ The Countermeasure Agent integrates seamlessly into Sentenial-X's modular archit
 
 4. **Governance Integration**: The agent enforces Role-Based Access Control (RBAC) with fine-grained roles for operators, auditors, and developers. It collaborates with the Jailbreak Detector to sanitize inputs and the Legal Shield for required approvals, ensuring no unsupervised destructive actions.
 
-This architecture supports enterprise-scale deployments, with infrastructure handled via Terraform and Helm in the `infra/` directory, promoting flexibility across cloud, on-premises, and hybrid setups.<grok:render card_id="8d5815" card_type="citation_card" type="render_inline_citation">
-<argument name="citation_id">10</argument>
-</grok:render>
+This architecture supports enterprise-scale deployments, with infrastructure handled via Terraform and Helm in the `infra/` directory, promoting flexibility across cloud, on-premises, and hybrid setups.
 
 ### Key Components
 The Countermeasure Agent comprises elements focused on secure, policy-compliant execution:
@@ -34,9 +34,7 @@ The Countermeasure Agent comprises elements focused on secure, policy-compliant 
 
 - **Feedback Integration**: Connects to the adaptive AI system, using post-action data to refine models and improve the platform's learning from incidents.
 
-These components emphasize security, with features like cryptographic signing and gated access (e.g., NDAs for sensitive modules).<grok:render card_id="150f58" card_type="citation_card" type="render_inline_citation">
-<argument name="citation_id">10</argument>
-</grok:render>
+These components emphasize security, with features like cryptographic signing and gated access (e.g., NDAs for sensitive modules).
 
 ### How It Works: Operational Flow
 1. **Invocation**: The Orchestrator receives threat insights from the Threat Engine and applies policy checks (including RBAC and approvals) before signaling the Countermeasure Agent.
@@ -49,9 +47,7 @@ These components emphasize security, with features like cryptographic signing an
 
 5. **Feedback and Adaptation**: Incident data is sanitized and fed back to update models, enhancing the agent's effectiveness over time. This loop supports Sentenial-X's mission of continuous improvement and anticipatory defense.
 
-The flow is designed to counter threats faster than attackers can adapt, while maintaining legal and operational safeguards. For testing, integration suites simulate attack playbacks to validate the agent's responses without real-world risk.<grok:render card_id="56db80" card_type="citation_card" type="render_inline_citation">
-<argument name="citation_id">10</argument>
-</grok:render>
+The flow is designed to counter threats faster than attackers can adapt, while maintaining legal and operational safeguards. For testing, integration suites simulate attack playbacks to validate the agent's responses without real-world risk.
 
 ### Files and Subdirectories
 Implementation details for the Countermeasure Agent are housed in the `services/countermeasure-agent/` directory, following a structure similar to other services like the API Gateway. However, as the repository is a public template without committed code files, specific implementations are not detailed. Based on the layout:
