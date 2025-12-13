@@ -1,9 +1,9 @@
-## Countermeasure Agent Architecture in Sentenial-X
+## Countermeasure Agent Architecture in Sentenial-X ##
+
+-------------------------------------------------------------------------------------------
 
 ### Overview
-The Countermeasure Agent is a core component of the Sentenial-X cyber-defense platform, serving as a policy-driven executor for safe and controlled responses to detected threats. It enables autonomous countermeasures such as quarantine, rerouting, and automatic recovery, while ensuring all actions are governed by strict policies to prevent unintended disruptions. Designed for resilience, it operates in sandboxed environments (using WASM or containers) and supports the platform's adaptive AI by incorporating incident feedback to refine future responses. This component embodies Sentenial-X's "offensive-defensive fusion," allowing for controlled emulation and self-healing mechanisms, all while prioritizing compliance and auditability.<grok:render card_id="e30f6f" card_type="citation_card" type="render_inline_citation">
-<argument name="citation_id">10</argument>
-</grok:render>
+The Countermeasure Agent is a core component of the Sentenial-X cyber-defense platform, serving as a policy-driven executor for safe and controlled responses to detected threats. It enables autonomous countermeasures such as quarantine, rerouting, and automatic recovery, while ensuring all actions are governed by strict policies to prevent unintended disruptions. Designed for resilience, it operates in sandboxed environments (using WASM or containers) and supports the platform's adaptive AI by incorporating incident feedback to refine future responses. This component embodies Sentenial-X's "offensive-defensive fusion," allowing for controlled emulation and self-healing mechanisms, all while prioritizing compliance and auditability.
 
 ### High-Level Architecture and Integration
 The Countermeasure Agent integrates seamlessly into Sentenial-X's modular architecture, acting as the execution layer following threat analysis. It is triggered only after policy validation, ensuring safe operation within the broader system flow.
@@ -65,6 +65,4 @@ Implementation details for the Countermeasure Agent are housed in the `services/
   - `libs/core/`: Shared utilities for policy enforcement and sandboxing.
   - `models/orchestrator/`: Scripts like `orchestrate.py` for packaging related artifacts, potentially used in countermeasure workflows.
 
-Development follows Python 3.10+ standards, with CI/CD enforcing linting (Ruff, Black), typing (Mypy), and security scans. For local testing, use Docker Compose to spin up isolated environments, ensuring no unauthorized executions.<grok:render card_id="563ebf" card_type="citation_card" type="render_inline_citation">
-<argument name="citation_id">10</argument>
-</grok:render>
+Development follows Python 3.10+ standards, with CI/CD enforcing linting (Ruff, Black), typing (Mypy), and security scans. For local testing, use Docker Compose to spin up isolated environments, ensuring no unauthorized executions.
